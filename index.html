@@ -2498,16 +2498,61 @@ viewer.addEventListener("click",closeViewer);
 ticket.addEventListener("click",e=>{const b=e.target.closest("[data-view]"); if(b) onThumb(b);});
 
 /* ---------- Sound ---------- */
-let ctx=null;
-function ac(){if(!state.sound)return null;try{ctx=ctx||new(window.AudioContext||window.webkitAudioContext)();}catch(e){return null;}return ctx;}
-function beep(fr){const c=ac();if(!c)return;const o=c.createOscillator(),g=c.createGain();o.type="square";o.frequency.value=fr;g.gain.setValueAtTime(.04,c.currentTime);g.gain.exponentialRampToValueAtTime(.0001,c.currentTime+.06);o.connect(g).connect(c.destination);o.start();o.stop(c.currentTime+.07);}
-function revealSound(){const c=ac();if(!c)return;const t=c.currentTime;
-  [523.25,659.25,783.99,1046.5,1318.5].forEach((f,i)=>{const o=c.createOscillator(),g=c.createGain();o.type="triangle";o.frequency.value=f;
-    const s=t+i*0.075;g.gain.setValueAtTime(0.0001,s);g.gain.exponentialRampToValueAtTime(0.14,s+0.02);g.gain.exponentialRampToValueAtTime(0.0001,s+0.45);
-    o.connect(g).connect(c.destination);o.start(s);o.stop(s+0.5);});}
-function motor(){const c=ac();if(!c)return;const o=c.createOscillator(),g=c.createGain();o.type="sawtooth";o.frequency.value=58;g.gain.setValueAtTime(.035,c.currentTime);g.gain.setValueAtTime(.035,c.currentTime+.85);g.gain.exponentialRampToValueAtTime(.0001,c.currentTime+1);o.connect(g).connect(c.destination);o.start();o.stop(c.currentTime+1.05);}
-function thunk(){const c=ac();if(!c)return;const t=c.currentTime,o=c.createOscillator(),g=c.createGain();o.frequency.setValueAtTime(130,t);o.frequency.exponentialRampToValueAtTime(45,t+.16);g.gain.setValueAtTime(.4,t);g.gain.exponentialRampToValueAtTime(.0001,t+.22);o.connect(g).connect(c.destination);o.start(t);o.stop(t+.23);
-  const n=c.createBufferSource(),b=c.createBuffer(1,c.sampleRate*.1,c.sampleRate),d=b.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=(Math.random()*2-1)*(1-i/d.length);const ng=c.createGain();ng.gain.value=.2;n.buffer=b;n.connect(ng).connect(c.destination);n.start(t);}
+/* ---------- Sound ----------
+   Browsers only allow sound after the visitor taps, so the audio is "unlocked"
+   on the first tap or key press. All sounds sit in the range phone and laptop
+   speakers can actually play, and pass through one master volume. */
+let ctx=null, master=null;
+function ac(){
+  if(!state.sound) return null;
+  try{
+    if(!ctx){
+      ctx=new(window.AudioContext||window.webkitAudioContext)();
+      const comp=ctx.createDynamicsCompressor(); master=ctx.createGain(); master.gain.value=0.9;
+      master.connect(comp).connect(ctx.destination);
+    }
+    if(ctx.state==="suspended") ctx.resume();
+  }catch(e){return null;}
+  return ctx;
+}
+function unlockAudio(){
+  const c=ac(); if(!c) return;
+  /* play a silent blip so iPhones and Androids fully wake the audio */
+  const b=c.createBuffer(1,1,22050), s=c.createBufferSource(); s.buffer=b; s.connect(master); s.start(0);
+}
+["pointerdown","touchend","keydown"].forEach(ev=>addEventListener(ev,unlockAudio,{passive:true}));
+function tone(c,{type="sine",f=440,f2=null,at=0,dur=.12,vol=.2}){
+  const t=c.currentTime+at, o=c.createOscillator(), g=c.createGain();
+  o.type=type; o.frequency.setValueAtTime(f,t); if(f2) o.frequency.exponentialRampToValueAtTime(f2,t+dur);
+  g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(vol,t+0.008); g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+  o.connect(g).connect(master); o.start(t); o.stop(t+dur+0.02);
+}
+function noise(c,{at=0,dur=.12,vol=.3,freq=900,q=1}){
+  const t=c.currentTime+at, len=Math.floor(c.sampleRate*dur), b=c.createBuffer(1,len,c.sampleRate), d=b.getChannelData(0);
+  for(let i=0;i<len;i++) d[i]=(Math.random()*2-1)*Math.pow(1-i/len,2);
+  const s=c.createBufferSource(), f=c.createBiquadFilter(), g=c.createGain();
+  s.buffer=b; f.type="bandpass"; f.frequency.value=freq; f.Q.value=q; g.gain.value=vol;
+  s.connect(f).connect(g).connect(master); s.start(t);
+}
+/* keypad / button click */
+function beep(fr){const c=ac();if(!c)return; tone(c,{type:"square",f:fr,dur:.07,vol:.12});}
+/* sparkly chime when the bag is revealed */
+function revealSound(){const c=ac();if(!c)return;
+  [523.25,659.25,783.99,1046.5,1318.5].forEach((f,i)=>tone(c,{type:"triangle",f,at:i*0.075,dur:.5,vol:.32}));
+  tone(c,{type:"sine",f:2093,at:.38,dur:.6,vol:.12});}
+/* the coil turning: a buzzy whirr (higher pitch so small speakers can play it) */
+function motor(){const c=ac();if(!c)return;
+  const t=c.currentTime, o=c.createOscillator(), o2=c.createOscillator(), f=c.createBiquadFilter(), g=c.createGain();
+  o.type="sawtooth"; o.frequency.setValueAtTime(140,t); o.frequency.linearRampToValueAtTime(180,t+.9);
+  o2.type="square"; o2.frequency.setValueAtTime(283,t);
+  f.type="lowpass"; f.frequency.value=1400;
+  g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(.09,t+.06); g.gain.setValueAtTime(.09,t+.85); g.gain.exponentialRampToValueAtTime(0.0001,t+1);
+  o.connect(f); o2.connect(f); f.connect(g).connect(master); o.start(t); o2.start(t); o.stop(t+1.05); o2.stop(t+1.05);}
+/* the bag landing in the bay: a thud plus a plasticky clack */
+function thunk(){const c=ac();if(!c)return;
+  tone(c,{type:"sine",f:220,f2:90,dur:.22,vol:.55});
+  noise(c,{dur:.14,vol:.55,freq:700,q:.8});
+  noise(c,{at:.02,dur:.06,vol:.25,freq:2400,q:2});}
 $("#soundBtn").addEventListener("click",e=>{state.sound=!state.sound;e.currentTarget.setAttribute("aria-pressed",state.sound);e.currentTarget.setAttribute("aria-label",state.sound?"Sound on":"Sound off");$("#waves").style.display=state.sound?"":"none";});
 $("#menuBtn").addEventListener("click",e=>{const open=$("#nav").classList.toggle("open");e.currentTarget.setAttribute("aria-expanded",open);});
 
