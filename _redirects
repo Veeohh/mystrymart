@@ -1,0 +1,3 @@
+# Old QR code addresses (like /flora or /keemo-art) load the site,
+# which then opens that artist's page. Real files are never affected.
+/*    /index.html    200

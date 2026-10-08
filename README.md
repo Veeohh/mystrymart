@@ -5,13 +5,18 @@ Two small server functions handle Stripe checkout.
 
 ## Put it online (Netlify, free tier works)
 
-1. Create a free account at netlify.com.
-2. Drag this whole folder onto the Netlify dashboard (or connect it from GitHub).
-3. In **Site configuration > Environment variables**, add:
+Checkout needs Netlify to install the Stripe code for the server functions, so use the GitHub route, not drag-and-drop.
+
+1. Create free accounts at github.com and netlify.com.
+2. On GitHub, create a new repository (private is fine) and upload everything in this folder: **Add file > Upload files**, then drag the files and the `netlify` folder in.
+3. In Netlify: **Add new site > Import an existing project > GitHub**, and pick that repository. Leave the build settings as they are and deploy.
+4. In **Site configuration > Environment variables**, add:
    - `STRIPE_SECRET_KEY` = your Stripe secret key (starts with `sk_test_` while testing, `sk_live_` when you go live)
-   - `ARTIST_PAYOUT_BASE` = total you've paid artists from the machines, in dollars (e.g. `213487`). The About page counter starts here and adds 50% of every online sale automatically. Update it whenever you pay out.
-4. Redeploy. Checkout, the artist application and the contact form now work.
-5. Point mystrymart.com at the site under **Domain management** when you're ready to switch from Squarespace.
+   - `ARTIST_PAYOUT_BASE` = total you've paid artists from the machines, in dollars (e.g. `213487`). The About page counter starts here and adds 50% of every online sale automatically.
+5. Redeploy (**Deploys > Trigger deploy**), then test everything on your free `something.netlify.app` address.
+6. When you're happy, connect mystrymart.com under **Domain management** and follow the DNS records Netlify shows you.
+
+To update the site later, upload the new files to the same GitHub repository and Netlify redeploys on its own.
 
 ## Where things land
 - **Payments:** your Stripe dashboard. Each payment's metadata shows the bag code, artist, buyer name and shipping address.

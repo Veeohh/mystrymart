@@ -8,7 +8,7 @@ exports.handler = async (event) => {
   try {
     const s = await stripe.checkout.sessions.retrieve(id);
     return { statusCode: 200, headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: s.status, email: s.customer_details && s.customer_details.email, bag: s.metadata && s.metadata.bag }) };
+      body: JSON.stringify({ status: s.status, email: s.customer_details && s.customer_details.email, bag: s.metadata && s.metadata.bag, surprise: !!(s.metadata && s.metadata.surprise === "yes") }) };
   } catch (err) {
     return { statusCode: 404, body: JSON.stringify({ status: "unknown" }) };
   }

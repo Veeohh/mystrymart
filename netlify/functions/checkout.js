@@ -11,7 +11,9 @@ exports.handler = async (event) => {
   if (event.httpMethod !== "POST") return { statusCode: 405, body: "Method not allowed" };
   let body;
   try { body = JSON.parse(event.body || "{}"); } catch { return { statusCode: 400, body: "Bad JSON" }; }
-  const { code, artist = "", name = "", email = "" } = body;
+  const { code, artist = "", name = "", email = "", surprise = false } = body;
+  // piece size shown on the receipt, e.g. "5 x 7 in" (only digits allowed, defaults to 5 x 7)
+  const size = /^\d{1,2} x \d{1,2} in$/.test(String(body.size || "")) ? body.size : "5 x 7 in";
   if (!VALID_CODE.test(code)) return { statusCode: 400, body: "Unknown bag" };
 
   const origin = event.headers.origin || process.env.URL;
@@ -25,13 +27,17 @@ exports.handler = async (event) => {
           currency: "usd",
           unit_amount: PRICE_CENTS,
           product_data: {
-            name: `Mystry Mart mystery bag ${code}`,
-            description: artist ? `A sealed mystery bag from ${String(artist).slice(0, 80)}` : undefined,
+            // Surprise packages never name the artist on the receipt
+            name: surprise ? "Mystry Mart surprise package" : `Mystry Mart mystery bag ${code}`,
+            description: surprise
+              ? "A fine art print (up to 5 x 7 in) from a mystery artist"
+              : `A ${size} fine art print from ${String(artist).slice(0, 80)}`,
           },
         },
       }],
       customer_email: email || undefined,
-      metadata: { bag: code, artist: String(artist).slice(0, 200), name: String(name).slice(0, 200) },
+      // metadata is only visible to you in Stripe, so you always know which bag to send
+      metadata: { bag: code, artist: String(artist).slice(0, 200), name: String(name).slice(0, 200), surprise: surprise ? "yes" : "no" },
       // Every order ships, so Stripe always asks for an address
       shipping_address_collection: { allowed_countries: ["US"] },
       return_url: `${origin}/?session_id={CHECKOUT_SESSION_ID}#shop`,
