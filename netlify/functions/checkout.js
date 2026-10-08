@@ -42,7 +42,9 @@ exports.handler = async (event) => {
       shipping_address_collection: { allowed_countries: ["US"] },
       return_url: `${origin}/?session_id={CHECKOUT_SESSION_ID}#shop`,
     });
-    return { statusCode: 200, headers: { "Content-Type": "application/json" }, body: JSON.stringify({ clientSecret: session.client_secret }) };
+    // The publishable key comes from Netlify too, so going live is just a settings change
+    return { statusCode: 200, headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ clientSecret: session.client_secret, publishableKey: process.env.STRIPE_PUBLISHABLE_KEY || null }) };
   } catch (err) {
     console.error(err);
     return { statusCode: 500, body: "Could not start checkout" };

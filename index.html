@@ -2454,9 +2454,10 @@ async function stepPay(){
     const r=await fetch(API+"/checkout",{method:"POST",headers:{"Content-Type":"application/json"},
       body:JSON.stringify({code:it.code,artist:it.artist.studio,name:order.name,email:order.email,delivery:order.delivery,surprise:order.surprise,size:order.surprise?"":sizeOf(it.artist).replace("×","x").replace(" inches"," in")})});
     if(!r.ok) throw new Error("Checkout server returned "+r.status);
-    const {clientSecret}=await r.json();
+    const {clientSecret,publishableKey}=await r.json();
     await loadStripe();
-    const stripe=window.Stripe(STRIPE_PK);
+    /* Netlify's STRIPE_PUBLISHABLE_KEY setting wins, so switching to live payments needs no code change */
+    const stripe=window.Stripe(publishableKey||STRIPE_PK);
     checkout=await stripe.initEmbeddedCheckout({fetchClientSecret:async()=>clientSecret});
     $("#stripeMount").innerHTML=""; checkout.mount("#stripeMount");
   }catch(err){

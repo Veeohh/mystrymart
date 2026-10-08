@@ -26,9 +26,12 @@ To update the site later, upload the new files to the same GitHub repository and
 ## Testing payments
 Use Stripe's test card `4242 4242 4242 4242`, any future date, any CVC.
 
-## Going live
-1. Swap `STRIPE_SECRET_KEY` in Netlify for your live secret key.
-2. In `index.html`, search for `STRIPE_PK` and paste your live publishable key (`pk_live_...`).
+## Going live (no code changes needed)
+1. In Stripe, finish activating your account and switch to live mode.
+2. In Netlify > Environment variables, set:
+   - `STRIPE_SECRET_KEY` = your live secret key (`sk_live_...`)
+   - `STRIPE_PUBLISHABLE_KEY` = your live publishable key (`pk_live_...`)
+3. Redeploy (Deploys > Trigger deploy). Checkout now takes real payments.
 
 ## Editing content (all in index.html)
 - Artists in each slot: search for `const ARTISTS`
