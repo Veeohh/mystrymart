@@ -2511,7 +2511,8 @@ function ac(){
       const comp=ctx.createDynamicsCompressor(); master=ctx.createGain(); master.gain.value=0.9;
       master.connect(comp).connect(ctx.destination);
     }
-    if(ctx.state==="suspended") ctx.resume();
+    /* Safari can leave audio "suspended" or "interrupted"; wake it from either */
+    if(ctx.state!=="running"&&ctx.resume) ctx.resume().catch(()=>{});
   }catch(e){return null;}
   return ctx;
 }
@@ -2520,7 +2521,9 @@ function unlockAudio(){
   /* play a silent blip so iPhones and Androids fully wake the audio */
   const b=c.createBuffer(1,1,22050), s=c.createBufferSource(); s.buffer=b; s.connect(master); s.start(0);
 }
-["pointerdown","touchend","keydown"].forEach(ev=>addEventListener(ev,unlockAudio,{passive:true}));
+/* Safari only counts some events as permission to play sound, so listen for all of them */
+["touchstart","touchend","mousedown","pointerup","click","keydown"].forEach(ev=>addEventListener(ev,unlockAudio,{passive:true,capture:true}));
+document.addEventListener("visibilitychange",()=>{ if(!document.hidden&&ctx&&ctx.state!=="running") ctx.resume().catch(()=>{}); });
 function tone(c,{type="sine",f=440,f2=null,at=0,dur=.12,vol=.2}){
   const t=c.currentTime+at, o=c.createOscillator(), g=c.createGain();
   o.type=type; o.frequency.setValueAtTime(f,t); if(f2) o.frequency.exponentialRampToValueAtTime(f2,t+dur);
