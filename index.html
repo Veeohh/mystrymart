@@ -18,6 +18,9 @@
 <meta property="og:image:alt" content="The Mystry Mart logo next to a colorful painted art vending machine">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:image" content="https://mystrymart.com/images/share.jpg">
+<link rel="canonical" href="https://mystrymart.com/">
+<!-- Structured data: tells search engines and AI what Mystry Mart is (standard, allowed by Google) -->
+<script type="application/ld+json" id="ld-org">{"@context": "https://schema.org", "@graph": [{"@type": "Organization", "@id": "https://mystrymart.com/#org", "name": "Mystry Mart", "url": "https://mystrymart.com/", "logo": "https://mystrymart.com/images/share.jpg", "image": "https://mystrymart.com/images/share.jpg", "description": "Mystry Mart is an art vending machine company founded in New York City in 2022. Its machines sell sealed mystery bags of original art, such as fine art prints, paintings and ceramics, made by emerging and independent artists. Artists earn 50% of every sale.", "foundingDate": "2022", "foundingLocation": "New York City", "slogan": "Unravel the Mystry", "knowsAbout": ["art vending machines", "mystery art", "emerging artists", "independent artists", "affordable original art"], "sameAs": ["https://www.instagram.com/mystrymart/"], "areaServed": "United States"}, {"@type": "WebSite", "@id": "https://mystrymart.com/#site", "url": "https://mystrymart.com/", "name": "Mystry Mart", "publisher": {"@id": "https://mystrymart.com/#org"}}, {"@type": "Product", "name": "Mystry Mart mystery art bag", "brand": {"@id": "https://mystrymart.com/#org"}, "description": "A sealed mystery bag containing one original piece of art, usually a 5 x 7 inch fine art print, by an emerging artist. Buyers pick a bag from the online art vending machine and discover the artist before it ships.", "image": "https://mystrymart.com/images/share.jpg", "offers": {"@type": "Offer", "price": "25.00", "priceCurrency": "USD", "availability": "https://schema.org/InStock", "url": "https://mystrymart.com/"}}]}</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;700&family=Bungee&family=VT323&display=swap" rel="stylesheet">
@@ -512,7 +515,6 @@ body.on-shop .site-footer{display:none}
 .size-note{margin:18px 0 0;font-size:17px;line-height:1.5;background:var(--card);border:3px solid var(--ink-black);border-radius:12px;padding:12px 16px;display:inline-block}
 
 /* Newsletter */
-body.on-shop .newsletter{display:none}
 .newsletter{background:linear-gradient(120deg,var(--mm-pink),var(--mm-orange) 60%,var(--mm-gold));border-top:6px solid var(--ink-black);padding:56px 28px}
 .nl-in{max-width:1180px;margin:0 auto;display:grid;grid-template-columns:.8fr 1.2fr;gap:48px;align-items:center}
 .nl-copy h2{font-family:var(--f-head);font-weight:400;font-size:clamp(34px,4vw,56px);line-height:1;margin:0 0 14px;color:#fff;text-shadow:3px 3px 0 var(--ink-black)}
@@ -866,7 +868,7 @@ body.on-shop .newsletter{display:none}
   <header class="hero"><div class="paint" data-seed="24"></div><div class="hero-in"><h1 class="hero-title">Say hi</h1></div></header>
   <div class="wrap two-col">
     <div class="card form-card">
-      <form name="contact" enctype="multipart/form-data" data-done-title="Message sent!" data-done-text="Thanks for reaching out. We'll reply at {email}." method="POST" data-netlify="true" netlify-honeypot="bot-field" data-form="contact">
+      <form name="contact" enctype="multipart/form-data" data-done-title="Message sent!" data-done-text="Thanks for reaching out. We’ll reply at {email}." method="POST" data-netlify="true" netlify-honeypot="bot-field" data-form="contact">
         <input type="hidden" name="form-name" value="contact">
         <p class="hp"><label>Leave this empty <input name="bot-field" tabindex="-1" autocomplete="off"></label></p>
         <div class="grid2">
@@ -897,7 +899,7 @@ body.on-shop .newsletter{display:none}
       <p>New machines, new artists, open calls and machine design competitions, straight to your inbox.</p>
     </div>
     <div class="nl-form">
-      <form name="newsletter" data-done-title="You're in!" data-done-text="Watch your inbox at {email} for the next drop." method="POST" data-netlify="true" netlify-honeypot="bot-field" data-form="newsletter">
+      <form name="newsletter" data-done-title="Thank You!" data-done-text="Watch your inbox at {email} for the next drop." method="POST" data-netlify="true" netlify-honeypot="bot-field" data-form="newsletter">
         <input type="hidden" name="form-name" value="newsletter">
         <p class="hp"><label>Leave this empty <input name="bot-field" tabindex="-1" autocomplete="off"></label></p>
         <div class="grid2">
@@ -3410,7 +3412,7 @@ function renderArtistPage(sl){
   const {code,a}=hit, it=code&&ITEMS.find(i=>i.code===code&&!i.empty&&i.stock>0);
   const first=(a.name||a.studio).split(" ")[0];
   $("#artistHeroTitle").textContent="Meet the artist";
-  document.title=`${a.studio} | Mystry Mart`;
+  if(!(firstRoute&&KEEP_TITLE)) document.title=`${a.studio} | Mystry Mart`;
   const others=DIRECTORY.filter(d=>d.a!==a).sort(()=>Math.random()-.5).slice(0,4);
   /* Previous / next artist, alphabetical, wrapping around */
   const idx=DIRECTORY.findIndex(d=>d.a===a), n=DIRECTORY.length;
@@ -3454,10 +3456,13 @@ function renderArtistPage(sl){
 /* Router */
 const painted=new Set();
 let firstRoute=true;
+/* Pages built by prerender.js keep their descriptive title on first load (better for search) */
+const KEEP_TITLE=!!document.querySelector('meta[name="mm-prerendered"]') || (!PATH && !location.hash.slice(1));
 function route(){
   let p=location.hash.slice(1), artistSlug=null;
   if(p.startsWith("artist=")){ artistSlug=decodeURIComponent(p.slice(7)).toLowerCase(); p="artist"; }
   /* QR addresses look like /flora: one word, no dots or slashes, on the real website only */
+  else if(!p && ["locations","apply","artists","press","about","faq","contact","shop"].includes(PATH)) p=PATH;
   else if(!p && PATH && /^[a-z0-9_][a-z0-9_.-]*$/.test(PATH) && location.protocol.startsWith("http")){ artistSlug=PATH; p="artist"; }
   if(p==="artist") renderArtistPage(artistSlug);
   if(!PAGE_IDS.includes(p)) p="shop";
@@ -3466,7 +3471,7 @@ function route(){
   const navKey=p==="artist"?"artists":p;
   document.querySelectorAll("[data-nav]").forEach(a=>a.dataset.nav===navKey?a.setAttribute("aria-current","page"):a.removeAttribute("aria-current"));
   const page=$("#page-"+p);
-  if(p!=="artist") document.title=(p==="shop"?"Shop the machine":page.dataset.title)+" | Mystry Mart";
+  if(p!=="artist" && !(firstRoute&&KEEP_TITLE)) document.title=(p==="shop"?"Shop the machine":page.dataset.title)+" | Mystry Mart";
   if(p==="shop"){ let pick=null; try{pick=sessionStorage.getItem("mm-pick"); sessionStorage.removeItem("mm-pick");}catch(e){}
     const it=pick&&ITEMS.find(i=>i.code===pick); if(it) setTimeout(()=>select(it),300); }
   const hero=page.querySelector(".hero .paint");
@@ -3490,7 +3495,8 @@ document.querySelectorAll("form[data-form]").forEach(form=>{
     if(files){
       const fe=form.querySelector("[data-file-err]"); fe.textContent="";
       if(files.files.length>5){fe.textContent="Choose up to 5 images.";files.focus();return;}
-      if([...files.files].some(f=>f.size>8*1024*1024)){fe.textContent="Each image needs to be 8 MB or smaller.";files.focus();return;}
+      /* Netlify Forms accepts up to 8 MB per message in total */
+      if([...files.files].reduce((t,f)=>t+f.size,0)>8*1024*1024){fe.textContent="Photos need to add up to 8 MB or less. Try fewer or smaller images.";files.focus();return;}
     }
     const btn=form.querySelector("button[type=submit]"), label=btn.textContent;
     btn.disabled=true; btn.textContent="Sending...";
