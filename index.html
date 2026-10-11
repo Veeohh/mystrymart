@@ -625,7 +625,7 @@ body.on-shop .site-footer{display:none}
   .logo-link img{height:42px}
 }
 .ap-process{display:flex;flex-wrap:wrap;align-items:center;gap:40px 56px;margin:56px 0 24px;padding:32px;background:var(--card);border:3px solid var(--ink-black);border-radius:20px;box-shadow:8px 8px 0 var(--trim)}
-.proc-frame{flex:0 0 auto;width:min(320px,100%);margin:0 auto}
+.proc-frame{flex:0 0 auto;width:min(320px,100%);margin:0 auto;order:-1}
 .proc-video{position:relative;aspect-ratio:9/16;border-radius:16px;overflow:hidden;border:4px solid var(--ink-black);background:#141418;box-shadow:8px 8px 0 var(--mm-pink)}
 .proc-video video{width:100%;height:100%;object-fit:cover;display:block;background:#141418}
 .proc-play{position:absolute;left:50%;top:50%;translate:-50% -50%;width:84px;height:84px;border-radius:50%;background:var(--sign);border:4px solid var(--ink-black);display:grid;place-items:center;box-shadow:4px 4px 0 var(--ink-black)}
@@ -636,7 +636,7 @@ body.on-shop .site-footer{display:none}
 .proc-text p{font-size:18px;line-height:1.6;margin:0 0 10px;max-width:46ch}
 .proc-note{color:var(--ink-soft);font-size:15px!important}
 .proc-lcd{display:inline-block;font-family:var(--f-lcd);font-size:20px;background:#0B130B;color:#9BFF7A;padding:2px 10px;border-radius:4px}
-@media (max-width:600px){.ap-process{padding:20px;gap:24px;margin-top:40px}.proc-text{text-align:center}.proc-text p{margin-inline:auto}}
+@media (max-width:767px){.ap-process{flex-direction:column;flex-wrap:nowrap;padding:20px;gap:24px;margin-top:40px}.proc-frame{order:0}.proc-text{flex:none;text-align:center}.proc-text p{margin-inline:auto}}
 .quote-card{position:relative;margin:48px 0 8px;background:var(--card);border:3px solid var(--ink-black);border-radius:20px;box-shadow:8px 8px 0 var(--mm-gold);padding:34px 34px 26px 34px}
 .quote-card::before{content:"“";position:absolute;left:22px;top:-34px;font-family:var(--f-head);font-size:110px;line-height:1;color:var(--mm-pink);text-shadow:4px 4px 0 var(--ink-black)}
 .quote-card blockquote{margin:0 0 20px;font-size:19px;line-height:1.65;font-style:italic;max-width:70ch}
@@ -650,6 +650,9 @@ body.on-shop .site-footer{display:none}
 .story-card{box-shadow:8px 8px 0 var(--mm-pink)}
 .story-card .proc-lcd{margin:0 0 14px}
 @media (max-width:600px){.quote-card{padding:28px 20px 20px}.quote-card blockquote{font-size:17px}}
+.more-link{display:flex;align-items:center;gap:8px;margin:2px 0 16px;padding:10px 14px;border:3px solid var(--ink-black);border-radius:12px;background:var(--sign);color:#16170F!important;font-weight:800;font-size:14px;line-height:1.3;text-decoration:none;box-shadow:3px 3px 0 var(--mm-pink)}
+.more-link span{flex:1}
+.more-link:hover{transform:translate(-1px,-1px);box-shadow:4px 4px 0 var(--mm-pink)}
 /* Pick card nav: only used by the phone pop-up */
 .pick-nav{display:none}
 .pick-backdrop{display:none}
@@ -3034,6 +3037,13 @@ function wirePickNav(){
   $("#pickClose")?.addEventListener("click",closePick);
 }
 $("#pickBackdrop").addEventListener("click",closePick);
+/* "Learn more" link when the artist page has extras (process video, testimonial, story) */
+function moreLink(a){
+  if(!(a.video||a.testimonial||a.story)) return "";
+  const d=DIRECTORY.find(x=>x.a===a); if(!d) return "";
+  const what=a.video?"Watch their process &amp; learn more":"Learn more about the artist";
+  return `<a class="more-link" href="${artistHref(d.slug)}">${a.video?'<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>':""}<span>${what}</span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></a>`;
+}
 function renderTicket(){
   const it=state.selected, locked=state.busy||state.dropped;
   const surprise=`<button class="btn ghost" id="surprise" ${locked?"disabled":""}>Surprise me</button>`;
@@ -3052,6 +3062,7 @@ function renderTicket(){
       ${headHTML(a)}
       <div class="t-bio" tabindex="0" role="region" aria-label="About ${esc(a.studio)}">${esc(a.bio||PENDING_BIO)}</div>
       ${a.work.length?`<p class="inside-label">What you might find inside</p><div class="thumbs">${thumbs(a,3)}</div><p class="rotate-note">Pieces rotate, so yours may be different, but it will always be in this artist's style.</p>`:""}
+      ${moreLink(a)}
       <div class="btn-row"><button class="btn" id="ticketVend" ${sold||locked?"disabled":""}>${sold?"Sold out":"Vend it"}</button>${surprise}</div>`;
     $("#ticketVend").addEventListener("click",()=>{beep(1200);vend();});
   }
@@ -3529,9 +3540,9 @@ function renderArtistPage(sl){
     </div>
     ${a.work&&a.work.length?`<h2 class="sec">What you can discover inside</h2><p class="rotate-note big">Pieces rotate, so yours may be different, but it will always be in ${esc(first)}'s style.</p><div class="ap-gallery">${thumbs(a)}</div>`:""}
     ${a.video?`<section class="ap-process" aria-labelledby="procTitle">
-      <div class="proc-frame"><div class="proc-video"><video src="${esc(a.video.src)}"${a.video.poster?` poster="${esc(a.video.poster)}"`:""} controls playsinline preload="none" aria-label="${esc(first)}'s process video"></video></div></div>
       <div class="proc-text"><span class="proc-lcd">BEHIND THE ART</span><h2 class="sec" id="procTitle">${esc(a.video.title||"Watch "+first+" work")}</h2>
         <p>${esc(a.video.text||"See a piece come together, from first sketch to finished work.")}</p></div>
+      <div class="proc-frame"><div class="proc-video"><video src="${esc(a.video.src)}"${a.video.poster?` poster="${esc(a.video.poster)}"`:""} controls playsinline preload="none" aria-label="${esc(first)}'s process video"></video></div></div>
     </section>`:""}
     ${a.testimonial?`<figure class="quote-card"><blockquote>${esc(a.testimonial)}</blockquote><figcaption>${pic(a.photo,"q-photo","",initials(a))}<span><b>${esc(a.name||a.studio)}</b>on being a Mystry Mart artist</span></figcaption></figure>`:""}
     ${a.story?`<figure class="quote-card story-card"><span class="proc-lcd">A MYSTRY MART STORY</span><blockquote>${esc(a.story)}</blockquote><figcaption>${pic(a.photo,"q-photo","",initials(a))}<span><b>${esc(a.name||a.studio)}</b>${esc(a.studio)}</span></figcaption></figure>`:""}
