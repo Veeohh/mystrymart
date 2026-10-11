@@ -301,7 +301,9 @@ body.on-shop .site-footer{display:none}
 .loc-grid.past .loc-photo{aspect-ratio:16/9}
 .loc-grid.past h3{font-size:20px}
 .year{position:absolute;left:12px;top:12px;background:var(--sign);color:#16170F;border:2px solid var(--ink-black);font-family:var(--f-head);font-size:14px;padding:3px 10px;border-radius:999px;z-index:1}
-.apply-cta{padding:36px 32px;position:sticky;top:90px}
+.apply-cta{padding:36px 32px}
+.apply-side{min-width:0}
+.side-sec{margin-top:44px}
 .eyebrow{font-weight:700;text-transform:uppercase;letter-spacing:.08em;font-size:13px;color:var(--mm-pink-dk);margin:0 0 6px}
 .cta-title{font-family:var(--f-head);font-weight:400;font-size:clamp(28px,2.6vw,38px);line-height:1.05;margin:0 0 14px}
 .apply-cta>p{line-height:1.55;margin:0 0 22px;font-size:17px}
@@ -555,7 +557,7 @@ body.on-shop .site-footer{display:none}
 .foot-links{margin:0 0 0 auto;display:flex;gap:20px;flex-wrap:wrap}
 
 @media (max-width:900px){
-  .apply-cta{position:static}
+  .apply-side{position:static}
   .two-col,.about-grid,.painters,.spotlight,.partner,.nl-in{grid-template-columns:1fr;gap:36px}
   .pillars{grid-template-columns:1fr}
   .stats{grid-template-columns:1fr 1fr}
@@ -622,6 +624,49 @@ body.on-shop .site-footer{display:none}
   .site-header{height:56px;padding:0 10px;gap:8px}
   .logo-link img{height:42px}
 }
+.ap-process{display:flex;flex-wrap:wrap;align-items:center;gap:40px 56px;margin:56px 0 24px;padding:32px;background:var(--card);border:3px solid var(--ink-black);border-radius:20px;box-shadow:8px 8px 0 var(--trim)}
+.proc-frame{flex:0 0 auto;width:min(320px,100%);margin:0 auto}
+.proc-video{position:relative;aspect-ratio:9/16;border-radius:16px;overflow:hidden;border:4px solid var(--ink-black);background:#141418;box-shadow:8px 8px 0 var(--mm-pink)}
+.proc-video video{width:100%;height:100%;object-fit:cover;display:block;background:#141418}
+.proc-play{position:absolute;left:50%;top:50%;translate:-50% -50%;width:84px;height:84px;border-radius:50%;background:var(--sign);border:4px solid var(--ink-black);display:grid;place-items:center;box-shadow:4px 4px 0 var(--ink-black)}
+.proc-play svg{margin-left:5px}
+.proc-tag{position:absolute;left:12px;bottom:12px;font-family:var(--f-lcd);font-size:20px;background:#0B130B;color:#9BFF7A;padding:2px 10px;border-radius:4px}
+.proc-text{flex:1 1 300px;min-width:0}
+.proc-text .sec{margin:10px 0 12px}
+.proc-text p{font-size:18px;line-height:1.6;margin:0 0 10px;max-width:46ch}
+.proc-note{color:var(--ink-soft);font-size:15px!important}
+.proc-lcd{display:inline-block;font-family:var(--f-lcd);font-size:20px;background:#0B130B;color:#9BFF7A;padding:2px 10px;border-radius:4px}
+@media (max-width:600px){.ap-process{padding:20px;gap:24px;margin-top:40px}.proc-text{text-align:center}.proc-text p{margin-inline:auto}}
+.quote-card{position:relative;margin:48px 0 8px;background:var(--card);border:3px solid var(--ink-black);border-radius:20px;box-shadow:8px 8px 0 var(--mm-gold);padding:34px 34px 26px 34px}
+.quote-card::before{content:"“";position:absolute;left:22px;top:-34px;font-family:var(--f-head);font-size:110px;line-height:1;color:var(--mm-pink);text-shadow:4px 4px 0 var(--ink-black)}
+.quote-card blockquote{margin:0 0 20px;font-size:19px;line-height:1.65;font-style:italic;max-width:70ch}
+.quote-card figcaption{display:flex;align-items:center;gap:14px;font-size:15px}
+.quote-card figcaption b{display:block;color:var(--ink);font-family:var(--f-head);font-weight:400;font-size:18px}
+.quote-card figcaption span{color:var(--ink-soft)}
+.quote-card figcaption a{color:var(--mm-pink-dk)}
+.q-photo{width:58px;height:58px;border-radius:50%;border:3px solid var(--ink-black);flex:none;overflow:hidden}
+.q-photo img{width:100%;height:100%;object-fit:cover}
+#page-apply .quote-card{margin-top:26px}
+.story-card{box-shadow:8px 8px 0 var(--mm-pink)}
+.story-card .proc-lcd{margin:0 0 14px}
+@media (max-width:600px){.quote-card{padding:28px 20px 20px}.quote-card blockquote{font-size:17px}}
+/* Pick card nav: only used by the phone pop-up */
+.pick-nav{display:none}
+.pick-backdrop{display:none}
+/* Phones: the sign sits right under the machine and "Your pick" opens as a pop-up over it */
+@media (max-width:767px){
+  .standee{order:2}
+  .ticket{display:none;position:fixed;z-index:40;left:12px;right:12px;width:auto;box-sizing:border-box;top:calc(68px + env(safe-area-inset-top,0px));
+    max-width:440px;margin:0 auto;max-height:calc(100svh - 90px - env(safe-area-inset-top,0px));overflow-y:auto;overscroll-behavior:contain;padding:18px 18px 20px}
+  body.pick-open .ticket{display:block;animation:pickIn .18s ease-out}
+  body.pick-open .pick-backdrop{display:block;position:fixed;inset:0;z-index:39;background:rgba(12,10,16,.45);border:0;padding:0;margin:0;width:100%;cursor:default}
+  .pick-nav{display:flex;align-items:center;gap:8px;margin:-4px 0 12px}
+  .pick-nav .pn-count{flex:1;text-align:center;font-family:var(--f-lcd);font-size:20px;color:var(--ink-soft)}
+  .pn-btn{display:grid;place-items:center;width:44px;height:44px;border-radius:12px;border:3px solid var(--ink-black);background:var(--card);color:var(--ink);cursor:pointer;padding:0;box-shadow:3px 3px 0 var(--mm-pink)}
+  .pn-btn.pn-close{box-shadow:3px 3px 0 var(--ink-black)}
+  .pn-btn:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--mm-pink)}
+}
+@keyframes pickIn{from{transform:translateY(12px);opacity:.6}to{transform:none;opacity:1}}
 @media (prefers-reduced-motion: reduce){
   *{animation-duration:.01ms !important;animation-iteration-count:1 !important;transition-duration:.01ms !important}
 }
@@ -698,6 +743,7 @@ body.on-shop .site-footer{display:none}
     </div>
   </div>
 
+  <button class="pick-backdrop" id="pickBackdrop" type="button" tabindex="-1" aria-label="Close your pick"></button>
   <aside class="ticket" id="ticket" aria-live="polite"></aside>
 </main>
 
@@ -759,6 +805,7 @@ body.on-shop .site-footer{display:none}
       </div>
       <p class="size-note"><strong>Size:</strong> every piece must be 5 × 7 inches or smaller.</p>
     </div>
+    <div class="apply-side">
     <div class="card form-card apply-cta">
       <p class="eyebrow">Miami Art Week</p>
       <h2 class="cta-title">Ready to apply?</h2>
@@ -766,6 +813,9 @@ body.on-shop .site-footer{display:none}
       <a class="btn" id="jotformBtn" href="#" target="_blank" rel="noopener">Start the application</a>
       <p class="hint" style="margin-top:14px">Opens our application form in a new tab.</p>
       <div class="callout small">Want your work in our NYC machines, or to paint a machine? Join our newsletter below or follow <a href="https://www.instagram.com/mystrymart/" target="_blank" rel="noopener">@mystrymart</a> to hear about the next open call.</div>
+    </div>
+      <h2 class="sec side-sec">From our artists</h2>
+      <figure class="quote-card"><blockquote>I’ve been working with Mystry Mart for a few years now and have loved being part of it from the start. The team has brought such a fun and exciting concept to life and also been a joy to work with. I’ve also received so many lovely messages from customers who have purchased my art through Mystry Mart, and it always makes me happy to know my work has found a happy home with someone else.</blockquote><figcaption><span class="ph q-photo"><img src="images/artists/flora/photo.webp" alt="" loading="lazy"></span><span><b>Flora Hu</b><a href="flora">Pen and ink artist</a></span></figcaption></figure>
     </div>
   </div>
 </main>
@@ -1020,6 +1070,9 @@ const ARTISTS = {
  },
  "A5": {
   "name": "Kun-I and Shih-Wen",
+  "callName": "Space Rabbit",
+  "video": {"src": "videos/spacerabbitstudio-process.mp4", "poster": "images/artists/spacerabbitstudio/process-poster.webp", "title": "See Space Rabbit come to life", "text": "Every Space Rabbit print hides an animated surprise. Point your phone at it and watch the art come to life, then show it off to friends."},
+  "story": "A colleague we haven’t been in touch with for decades left us a message saying his daughter brought a Space Rabbit home from Mystry Mart at the Brooklyn Museum. He was proud to tell her that he knows the artist! These kinds of serendipitous moments are always so touching.",
   "studio": "Space Rabbit Studio",
   "handle": "space_rabbit_studio",
   "site": "https://space-rabbit.com",
@@ -1295,7 +1348,8 @@ const ARTISTS = {
   "handle": "floraahu",
   "site": "https://www.florahu.com",
   "siteLabel": "florahu.com",
-  "bio": "Hi, I'm Flora Hu! I work primarily in pen and ink, rendering everyday objects with a precision that borders on obsessive. My recent series focuses on the tools of the bar, each piece drawn in fine, controlled linework on toned paper, where the interplay of dense crosshatching and untouched paper conjures the gleam of glass and the cool weight of steel. I'm drawn to objects that are used with the hands, tools that carry ritual and repetition, and I like the challenge of translating something as fleeting as a reflection or a highlight into a fixed, deliberate mark. It's about slowing down enough to notice how light falls across a shaker or pools inside an empty glass and that attention is really what my work is about.",
+  "testimonial": "I’ve been working with Mystry Mart for a few years now and have loved being part of it from the start. The team has brought such a fun and exciting concept to life and also been a joy to work with. I’ve also received so many lovely messages from customers who have purchased my art through Mystry Mart, and it always makes me happy to know my work has found a happy home with someone else.",
+  "bio": "Hi, I’m Flora Hu! I’m an artist and designer from France, now based in NYC. I work primarily in pen and ink, drawing everyday objects with fine linework and bold shadows to capture the reflective surfaces of glass and metal. Drawn to objects shaped by use and repetition, my work explores the beauty of ordinary things through light, texture, and form.",
   "extra": null,
   "photo": "images/artists/flora/photo.webp",
   "work": [
@@ -1609,7 +1663,7 @@ const MORE_ARTISTS = {
  "diana-teeter": {
   "name": "Diana Teeter",
   "studio": "Diana Teeter",
-  "handle": "dianateeter",
+  "handle": "dianateeterart",
   "site": "https://www.dianateeterart.com",
   "siteLabel": "dianateeterart.com",
   "bio": "Hi, I'm Diana Teeter and welcome to Dianaland! I paint cute animals doing silly little things — a pigeon who drinks coffee and wears Timbs or a rat wearing a crown made of a MetroCard while eating pizza. It's very NYC-based. Sometimes I draw animals in cosplay, and other times more fairytale-like animals in cloaks, sharing quiet moments with lantern flies and moths. It all started as something whimsical just for me, a way to entertain myself and make myself laugh — but somehow, much to my surprise, other people fell in love with Dianaland too, and now I get to share this strange, tender, funny little world with all of you!",
@@ -2611,17 +2665,15 @@ const MORE_ARTISTS = {
   "name": "Yushin Kato",
   "studio": "Yushin Kato",
   "handle": "yushinkatoart",
-  "site": null,
-  "siteLabel": null,
-  "bio": "Hi, I'm Yushin Kato, a Brooklyn-based interdisciplinary artist and graphic designer. Working primarily with ink, graphite, and pencil, I create botanical-inspired artwork that explores the interconnectedness of nature, memory, healing, and human consciousness.\n\nMy practice is rooted in slow, intuitive creation, finding meaning in the delicate balance between opposites and the natural cycles that connect our inner worlds with the universe around us. Through abstract and symbolic florals, I invite viewers to reflect on the beauty, resilience, and harmony woven into all living things.",
+  "site": "https://www.yushinkato.com/",
+  "siteLabel": "yushinkato.com",
+  "bio": "Hi, I’m Yushin Kato, a bicultural, interdisciplinary artist and designer based in Brooklyn, New York. I work primarily with ink, graphite, and gouache, using abstract and symbolic botanical imagery to explore the elegance and intelligence of natural forms and metaphysical realms. My creative process is intuitive, balancing precision with spontaneity, and structure with surrender. Through my work, I invite viewers to reflect on the beauty of the natural world and its intrinsic connection to our everyday lives.",
   "photo": "images/artists/yushinkatoart/photo.webp",
   "work": [
    "images/artists/yushinkatoart/work-1.webp",
    "images/artists/yushinkatoart/work-2.webp",
    "images/artists/yushinkatoart/work-3.webp",
-   "images/artists/yushinkatoart/work-4.webp",
-   "images/artists/yushinkatoart/work-5.webp",
-   "images/artists/yushinkatoart/work-6.webp"
+   "images/artists/yushinkatoart/work-4.webp"
   ],
   "extra": null,
   "profile": "https://www.mystrymart.com/yushinkatoart"
@@ -2956,6 +3008,31 @@ function show(a,b,{blink=false}={}){
 const idle=()=>show("READY","PICK A BAG OR ENTER A CODE");
 
 /* ---------- Pick card ---------- */
+/* On phones "Your pick" opens as a pop-up over the machine, with arrows to step through the artists */
+const PHONE=matchMedia("(max-width: 767px)");
+PHONE.addEventListener?.("change",e=>{if(!e.matches) closePick();});
+const filled=()=>ITEMS.filter(i=>!i.empty);
+function openPick(){ if(PHONE.matches) document.body.classList.add("pick-open"); }
+function closePick(){ document.body.classList.remove("pick-open"); }
+function stepPick(dir){
+  const list=filled(); if(!list.length) return;
+  const i=list.findIndex(x=>x===state.selected);
+  select(list[(i+dir+list.length)%list.length]);
+}
+const CHEV=d=>`<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${d}"/></svg>`;
+function pickNavHTML(it){
+  const list=filled(), n=list.indexOf(it)+1;
+  return `<div class="pick-nav"><button class="pn-btn" id="pickPrev" type="button" aria-label="Previous artist">${CHEV("M15 18l-6-6 6-6")}</button>
+    <span class="pn-count">${n>0?`${n} OF ${list.length}`:""}</span>
+    <button class="pn-btn" id="pickNext" type="button" aria-label="Next artist">${CHEV("M9 6l6 6-6 6")}</button>
+    <button class="pn-btn pn-close" id="pickClose" type="button" aria-label="Close">${CHEV("M6 6l12 12M18 6L6 18")}</button></div>`;
+}
+function wirePickNav(){
+  $("#pickPrev")?.addEventListener("click",()=>stepPick(-1));
+  $("#pickNext")?.addEventListener("click",()=>stepPick(1));
+  $("#pickClose")?.addEventListener("click",closePick);
+}
+$("#pickBackdrop").addEventListener("click",closePick);
 function renderTicket(){
   const it=state.selected, locked=state.busy||state.dropped;
   const surprise=`<button class="btn ghost" id="surprise" ${locked?"disabled":""}>Surprise me</button>`;
@@ -2966,10 +3043,10 @@ function renderTicket(){
   if(!it){
     ticket.innerHTML=`<h2>Your pick</h2><p class="empty">Tap a bag in the glass to meet the artist, or punch its code into the keypad. Can't decide? <strong>Surprise me</strong> sends a bag from a mystery artist. Every bag is ${money(PRICE)}.</p><div class="btn-row">${surprise}</div>`;
   } else if(it.empty){
-    ticket.innerHTML=`<h2>Your pick</h2><span class="t-code">${it.code}</span><p class="empty" style="margin-top:12px">This slot is waiting for its next artist. Check back soon.</p><div class="btn-row">${surprise}</div>`;
+    ticket.innerHTML=`${pickNavHTML(it)}<h2>Your pick</h2><span class="t-code">${it.code}</span><p class="empty" style="margin-top:12px">This slot is waiting for its next artist. Check back soon.</p><div class="btn-row">${surprise}</div>`;
   } else {
     const a=it.artist, sold=it.stock<1;
-    ticket.innerHTML=`<h2>Your pick</h2>
+    ticket.innerHTML=`${pickNavHTML(it)}<h2>Your pick</h2>
       <div class="code-row"><span class="t-code">${it.code}</span><span class="t-price">${money(it.price)}</span></div>
       ${headHTML(a)}
       <div class="t-bio" tabindex="0" role="region" aria-label="About ${esc(a.studio)}">${esc(a.bio||PENDING_BIO)}</div>
@@ -2977,6 +3054,7 @@ function renderTicket(){
       <div class="btn-row"><button class="btn" id="ticketVend" ${sold||locked?"disabled":""}>${sold?"Sold out":"Vend it"}</button>${surprise}</div>`;
     $("#ticketVend").addEventListener("click",()=>{beep(1200);vend();});
   }
+  wirePickNav();
   $("#surprise").addEventListener("click",()=>{
     if(state.busy||state.dropped) return;
     const pool=ITEMS.filter(i=>i.stock>0&&!i.empty); if(!pool.length) return;
@@ -2993,13 +3071,13 @@ function select(it){
   if(it.empty) show(it.code,"NEW ARTIST SOON",{blink:true});
   else if(it.stock<1) show(it.code,"SOLD OUT. PICK ANOTHER",{blink:true});
   else show(`${it.code} ${money(it.price)}`,it.artist.studio.toUpperCase()+" - PRESS VEND");
-  renderTicket(); beep(880);
+  renderTicket(); beep(880); openPick();
 }
 slotsEl.addEventListener("click",e=>{const s=e.target.closest(".slot"); if(s) select(ITEMS.find(i=>i.code===s.dataset.code));});
 $("#keypad").addEventListener("click",e=>{
   const k=e.target.closest(".key")?.dataset.k; if(!k||state.busy) return;
   beep(k==="OK"?1200:700);
-  if(k==="CLR"){state.entry="";state.selected=null;slotsEl.querySelectorAll(".is-selected").forEach(s=>s.classList.remove("is-selected"));renderTicket();idle();return;}
+  if(k==="CLR"){closePick();state.entry="";state.selected=null;slotsEl.querySelectorAll(".is-selected").forEach(s=>s.classList.remove("is-selected"));renderTicket();idle();return;}
   if(k==="OK"){vend();return;}
   if(/[A-D]/.test(k)){state.entry=k;show(k+"_","NOW PICK 1 TO 5");return;}
   if(!state.entry){show("--","START WITH A LETTER",{blink:true});return;}
@@ -3010,6 +3088,7 @@ $("#vendBtn").addEventListener("click",()=>{beep(1200);vend();});
 /* ---------- Vend: coil turns, bag falls, lands in the bay ---------- */
 const wait=ms=>new Promise(r=>setTimeout(r,reduce?Math.min(ms,60):ms));
 async function vend(surpriseIt){
+  closePick();
   if(state.busy) return;
   if(state.dropped){show("WAIT","TAKE YOUR BAG FIRST",{blink:true});return;}
   const surprise=!!(surpriseIt&&surpriseIt.code);
@@ -3117,6 +3196,7 @@ modal.addEventListener("click",e=>{if(e.target===modal) dismiss();});
 document.addEventListener("keydown",e=>{
   if(e.key!=="Escape") return;
   if(viewer.classList.contains("open")) return closeViewer();
+  if(document.body.classList.contains("pick-open")) return closePick();
   if(modal.classList.contains("open")) dismiss();
 });
 
@@ -3410,7 +3490,7 @@ function renderArtistPage(sl){
     document.title="Page not found | Mystry Mart"; return;
   }
   const {code,a}=hit, it=code&&ITEMS.find(i=>i.code===code&&!i.empty&&i.stock>0);
-  const first=(a.name||a.studio).split(" ")[0];
+  const first=a.callName||(a.name||a.studio).split(" ")[0];
   $("#artistHeroTitle").textContent="Meet the artist";
   if(!(firstRoute&&KEEP_TITLE)) document.title=`${a.studio} | Mystry Mart`;
   const others=DIRECTORY.filter(d=>d.a!==a).sort(()=>Math.random()-.5).slice(0,4);
@@ -3447,6 +3527,13 @@ function renderArtistPage(sl){
       </div>
     </div>
     ${a.work&&a.work.length?`<h2 class="sec">What you can discover inside</h2><p class="rotate-note big">Pieces rotate, so yours may be different, but it will always be in ${esc(first)}'s style.</p><div class="ap-gallery">${thumbs(a)}</div>`:""}
+    ${a.video?`<section class="ap-process" aria-labelledby="procTitle">
+      <div class="proc-frame"><div class="proc-video"><video src="${esc(a.video.src)}"${a.video.poster?` poster="${esc(a.video.poster)}"`:""} controls playsinline preload="none" aria-label="${esc(first)}'s process video"></video></div></div>
+      <div class="proc-text"><span class="proc-lcd">BEHIND THE ART</span><h2 class="sec" id="procTitle">${esc(a.video.title||"Watch "+first+" work")}</h2>
+        <p>${esc(a.video.text||"See a piece come together, from first sketch to finished work.")}</p></div>
+    </section>`:""}
+    ${a.testimonial?`<figure class="quote-card"><blockquote>${esc(a.testimonial)}</blockquote><figcaption>${pic(a.photo,"q-photo","",initials(a))}<span><b>${esc(a.name||a.studio)}</b>on being a Mystry Mart artist</span></figcaption></figure>`:""}
+    ${a.story?`<figure class="quote-card story-card"><span class="proc-lcd">A MYSTRY MART STORY</span><blockquote>${esc(a.story)}</blockquote><figcaption>${pic(a.photo,"q-photo","",initials(a))}<span><b>${esc(a.name||a.studio)}</b>${esc(a.studio)}</span></figcaption></figure>`:""}
     ${bottomNav}
     ${others.length?`<h2 class="sec">More artists to discover</h2><div class="more-artists">${others.map(({slug,a:o},i)=>`<a href="${artistHref(slug)}">${pic(o.photo,"more-photo","Photo of "+(o.name||o.studio),initials(o))}<span>${esc(o.studio)}</span></a>`).join("")}</div>`:""}`;
   wrap.querySelectorAll("[data-view]").forEach(b=>b.onclick=()=>onThumb(b));
@@ -3467,7 +3554,7 @@ function route(){
   if(p==="artist") renderArtistPage(artistSlug);
   if(!PAGE_IDS.includes(p)) p="shop";
   document.querySelectorAll(".page").forEach(el=>el.hidden=el.id!=="page-"+p);
-  document.body.classList.toggle("on-shop",p==="shop");
+  document.body.classList.toggle("on-shop",p==="shop"); if(p!=="shop") closePick();
   const navKey=p==="artist"?"artists":p;
   document.querySelectorAll("[data-nav]").forEach(a=>a.dataset.nav===navKey?a.setAttribute("aria-current","page"):a.removeAttribute("aria-current"));
   const page=$("#page-"+p);
