@@ -647,6 +647,7 @@ body.on-shop .site-footer{display:none}
 .q-photo{width:58px;height:58px;border-radius:50%;border:3px solid var(--ink-black);flex:none;overflow:hidden}
 .q-photo img{width:100%;height:100%;object-fit:cover}
 #page-apply .quote-card{margin-top:26px}
+#page-apply .quote-card.q2{margin-top:56px;box-shadow:8px 8px 0 var(--mm-pink)}
 .story-card{box-shadow:8px 8px 0 var(--mm-pink)}
 .story-card .proc-lcd{margin:0 0 14px}
 @media (max-width:600px){.quote-card{padding:28px 20px 20px}.quote-card blockquote{font-size:17px}}
@@ -819,6 +820,7 @@ body.on-shop .site-footer{display:none}
     </div>
       <h2 class="sec side-sec">From our artists</h2>
       <figure class="quote-card"><blockquote>I’ve been working with Mystry Mart for a few years now and have loved being part of it from the start. The team has brought such a fun and exciting concept to life and also been a joy to work with. I’ve also received so many lovely messages from customers who have purchased my art through Mystry Mart, and it always makes me happy to know my work has found a happy home with someone else.</blockquote><figcaption><span class="ph q-photo"><img src="images/artists/flora/photo.webp" alt="" loading="lazy"></span><span><b>Flora Hu</b><a href="flora">Pen and ink artist</a></span></figcaption></figure>
+      <figure class="quote-card q2"><blockquote>Every time I do a large show selling my work, I get several people who recognize my work from the machine and tell me they got a piece from Mystry Mart at the Brooklyn Museum or House of Yes. As a small artist, it’s SO important to leave a lasting impression, and I feel Mystry Mart helps create a presence for me in the art space and in people’s minds.</blockquote><figcaption><span class="ph q-photo"><img src="images/artists/nyc-mango/photo.webp" alt="" loading="lazy"></span><span><b>NYC Mango</b><a href="nyc-mango">Painter, New York City</a></span></figcaption></figure>
     </div>
   </div>
 </main>
@@ -1074,7 +1076,12 @@ const ARTISTS = {
  "A5": {
   "name": "Kun-I and Shih-Wen",
   "callName": "Space Rabbit",
-  "video": {"src": "videos/spacerabbitstudio-process.mp4", "poster": "images/artists/spacerabbitstudio/process-poster.webp", "title": "See Space Rabbit come to life", "text": "Every Space Rabbit print hides an animated surprise. Point your phone at it and watch the art come to life, then show it off to friends."},
+  "video": {
+   "src": "videos/spacerabbitstudio-process.mp4",
+   "poster": "images/artists/spacerabbitstudio/process-poster.webp",
+   "title": "See Space Rabbit come to life",
+   "text": "Every Space Rabbit print hides an animated surprise. Point your phone at it and watch the art come to life, then show it off to friends."
+  },
   "story": "A colleague we haven’t been in touch with for decades left us a message saying his daughter brought a Space Rabbit home from Mystry Mart at the Brooklyn Museum. He was proud to tell her that he knows the artist! These kinds of serendipitous moments are always so touching.",
   "studio": "Space Rabbit Studio",
   "handle": "space_rabbit_studio",
@@ -1195,7 +1202,7 @@ const ARTISTS = {
   "handle": "nyc_mango",
   "site": "https://www.nycmango.com",
   "siteLabel": "nycmango.com",
-  "bio": "Hi, I'm Monica! As a painter, I explore themes of sensuality, nightlife, and empowered femininity, drawing inspiration from film noir and New York City's vibrant grit. My work celebrates confident women navigating worlds of intrigue, intensity, and self-expression. I strive to capture the feeling of a moment in time rather than a literal scene. Through the lens of the femme fatale, my paintings celebrate freedom, self-expression, and the magnetic tension between beauty and grit that defines urban life.",
+  "bio": "Hi, I’m NYC Mango! My art explores empowerment, sensuality, and the urban landscape, portraying women as bold, captivating forces within cinematic narratives. Inspired by the dramatic allure of film noir and the vibrant pulse of New York City, I paint through the lens of the femme fatale, exploring self-expression and the magnetic tension between beauty and grit that defines the city.",
   "extra": null,
   "photo": "images/artists/nyc-mango/photo.webp",
   "work": [
@@ -1203,10 +1210,32 @@ const ARTISTS = {
    "images/artists/nyc-mango/work-2.webp",
    "images/artists/nyc-mango/work-3.webp",
    "images/artists/nyc-mango/work-4.webp",
-   "images/artists/nyc-mango/work-5.webp",
-   "images/artists/nyc-mango/work-6.webp"
+   {
+    "src": "images/artists/nyc-mango/work-5.webp",
+    "mature": true
+   },
+   {
+    "src": "images/artists/nyc-mango/work-6.webp",
+    "mature": true
+   },
+   {
+    "src": "images/artists/nyc-mango/work-7.webp",
+    "mature": true
+   },
+   {
+    "src": "images/artists/nyc-mango/work-8.webp",
+    "mature": true
+   }
   ],
-  "profile": "https://www.mystrymart.com/nyc-mango"
+  "profile": "https://www.mystrymart.com/nyc-mango",
+  "callName": "NYC Mango",
+  "story": "Every time I do a large show selling my work, I get several people who recognize my work from the machine and tell me they got a piece from Mystry Mart at the Brooklyn Museum or House of Yes. As a small artist, it’s SO important to leave a lasting impression, and I feel Mystry Mart helps create a presence for me in the art space and in people’s minds.",
+  "video": {
+   "src": "videos/nyc-mango-process.mp4",
+   "poster": "images/artists/nyc-mango/process-poster.webp",
+   "title": "Watch NYC Mango paint",
+   "text": "Bold color, big brushstrokes and a little film-noir glamour, straight from the studio."
+  }
  },
  "C2": {
   "name": "Karen Vidals",
@@ -1351,7 +1380,12 @@ const ARTISTS = {
   "handle": "floraahu",
   "site": "https://www.florahu.com",
   "siteLabel": "florahu.com",
-  "video": {"src": "videos/flora-process.mp4", "poster": "images/artists/flora/process-poster.webp", "title": "Watch Flora work", "text": "See a piece come together, line by line, from first pencil sketch to finished ink drawing."},
+  "video": {
+   "src": "videos/flora-process.mp4",
+   "poster": "images/artists/flora/process-poster.webp",
+   "title": "Watch Flora work",
+   "text": "See a piece come together, line by line, from first pencil sketch to finished ink drawing."
+  },
   "testimonial": "I’ve been working with Mystry Mart for a few years now and have loved being part of it from the start. The team has brought such a fun and exciting concept to life and also been a joy to work with. I’ve also received so many lovely messages from customers who have purchased my art through Mystry Mart, and it always makes me happy to know my work has found a happy home with someone else.",
   "bio": "Hi, I’m Flora Hu! I’m an artist and designer from France, now based in NYC. I work primarily in pen and ink, drawing everyday objects with fine linework and bold shadows to capture the reflective surfaces of glass and metal. Drawn to objects shaped by use and repetition, my work explores the beauty of ordinary things through light, texture, and form.",
   "extra": null,
@@ -2875,6 +2909,23 @@ const MORE_ARTISTS = {
   ],
   "extra": null,
   "profile": "https://www.mystrymart.com/lichenlihua"
+ },
+ "fotowanderex": {
+  "name": "Kat Buckles",
+  "studio": "Fotowanderex",
+  "handle": "fotowandererx",
+  "site": null,
+  "siteLabel": null,
+  "bio": "Hi, I’m Kat Buckles, also known as Fotowanderex. I am a fine art photographer using experimental methods to create surreal and magical images. All of my art is created in-camera, involving techniques like multiple exposure and slow shutter speed.\n\nI enjoy creating unexpected images which juxtapose different themes or turn ordinary objects upside down. I strive to see our surroundings in wild and otherworldly ways, challenging my viewers to join me in finding enchantment, peculiar beauty, and strange poetry all around us.",
+  "photo": "images/artists/fotowanderex/photo.webp",
+  "work": [
+   "images/artists/fotowanderex/work-1.webp",
+   "images/artists/fotowanderex/work-2.webp",
+   "images/artists/fotowanderex/work-3.webp",
+   "images/artists/fotowanderex/work-4.webp"
+  ],
+  "extra": null,
+  "profile": "https://www.mystrymart.com/fotowanderex"
  }
 };
 const STRIPE_LINKS = {}; // e.g. { A1: "https://buy.stripe.com/xxxx" }
@@ -3470,13 +3521,19 @@ const SLUG_TO_ARTIST={};
 Object.entries(ARTISTS).forEach(([code,a])=>{ const sl=slugOf(a); if(sl&&!SLUG_TO_ARTIST[sl]) SLUG_TO_ARTIST[sl]={code,a}; });
 Object.entries(MORE_ARTISTS).forEach(([sl,a])=>{ if(!SLUG_TO_ARTIST[sl.toLowerCase()]) SLUG_TO_ARTIST[sl.toLowerCase()]={code:null,a}; });
 /* Directory: one card per artist (an artist with two QR addresses appears once) */
+const FEATURED=["c1mah-keychains", "spacerabbitstudio", "nyc-mango", "flora", "zhang-zheyi", "breadslug", "artworkbymelissa-s", "msstudioworks", "myformsmostbeautiful", "diana-teeter", "beemystique", "tannin-arceo", "sqribbz", "unlicensedkarebear", "tinybs", "emthecreative", "tanner-bosma-citysscapes", "erinkatearcher", "karayanceystudio", "maridad-studio", "yushinkatoart", "nothingbones", "artbyfaneshafabre", "saraantoinettemartin", "jennywalker", "topbunartist", "stitch-prism", "zoexiao", "chaotic_bell", "cloverleafpie", "robotbananacatdesigns", "margo-moore", "katrin-art", "jettakayama", "ethanminsker", "erhoffman", "artworldanna", "amber-lauder", "bluepaintkat", "cghallart", "chagoart", "eixeldesigns"];
 const DIRECTORY=(()=>{ const seen=new Set(), out=[];
   Object.entries(SLUG_TO_ARTIST).forEach(([sl,{a}])=>{ const key=(a.handle||a.studio).toLowerCase(); if(seen.has(key)) return; seen.add(key); out.push({slug:sl,a}); });
-  return out.sort((x,y)=>x.a.studio.localeCompare(y.a.studio)); })();
+  /* Featured artists first, in this order; everyone else after, A to Z (the Artists page shuffles that second group on every visit) */
+  const rank=new Map(); FEATURED.forEach((sl,i)=>{const h=SLUG_TO_ARTIST[sl]; if(h&&!rank.has(h.a)) rank.set(h.a,i);});
+  out.sort((x,y)=>{const rx=rank.has(x.a)?rank.get(x.a):1e9, ry=rank.has(y.a)?rank.get(y.a):1e9; return rx-ry||x.a.studio.localeCompare(y.a.studio);});
+  out.featuredCount=out.filter(d=>rank.has(d.a)).length; return out; })();
 const artistHref=sl=>(location.protocol.startsWith("http")&&!/claude\.ai|claudeusercontent|anthropic/.test(location.hostname))?"/"+sl:"#artist="+sl;
 
 function renderDirectory(){
-  $("#dirGrid").innerHTML=DIRECTORY.map(({slug,a},i)=>`
+  const k=DIRECTORY.featuredCount, rest=DIRECTORY.slice(k);
+  for(let i=rest.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[rest[i],rest[j]]=[rest[j],rest[i]];}
+  $("#dirGrid").innerHTML=DIRECTORY.slice(0,k).concat(rest).map(({slug,a},i)=>`
     <a class="card dir-card" href="${artistHref(slug)}" data-find="${esc((a.studio+" "+(a.name||"")+" "+(a.handle||"")).toLowerCase())}">
       ${pic(a.photo,"dir-photo","Photo of "+(a.name||a.studio),initials(a))}
       <span class="dir-name">${esc(a.studio)}</span>
