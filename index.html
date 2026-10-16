@@ -674,7 +674,52 @@ body.on-shop .site-footer{display:none}
 @media (prefers-reduced-motion: reduce){
   *{animation-duration:.01ms !important;animation-iteration-count:1 !important;transition-duration:.01ms !important}
 }
-</style>
+/* ---- Apply page: Red Dot Miami ---- */
+.ap-video{position:relative;width:100%;aspect-ratio:16/9;margin:0 0 56px;border:3px solid #000;border-radius:18px;overflow:hidden;background:#000;box-shadow:8px 8px 0 var(--mm-pink)}
+.ap-video video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;border:0}
+.ap-video-tag{font-family:var(--f-lcd);font-size:22px;color:#9BFF7A;background:#0B130B;padding:8px 14px 6px;border-radius:8px;box-shadow:inset 0 0 0 3px #3A3A40;text-shadow:0 0 8px rgba(155,255,122,.5)}
+.ap-video p{margin:0;max-width:44ch;font-size:16px;line-height:1.5;color:#BDB7C4}
+.ap-video p b{display:block;font-family:var(--f-head);font-weight:400;font-size:clamp(22px,2.4vw,32px);color:#fff;margin-bottom:6px}
+.ap-p{font-size:17px;line-height:1.6;max-width:62ch;margin:0 0 18px}
+.ap-why{list-style:none;padding:0;margin:0 0 22px;display:grid;gap:12px;max-width:62ch}
+.ap-why li{position:relative;padding-left:30px;font-size:17px;line-height:1.55}
+.ap-why li::before{content:"";position:absolute;left:0;top:.45em;width:14px;height:14px;border-radius:4px;background:var(--sign);border:2px solid #000}
+.ap-why b{display:block}
+.ap-rules{margin-top:18px;padding:18px 20px;box-shadow:6px 6px 0 var(--trim)}
+.ap-rules h3{margin:0 0 6px;font-family:var(--f-head);font-weight:400;font-size:18px}
+.ap-rules p{margin:0 0 8px;font-size:16px}
+.ap-rules ul{list-style:none;padding:0;margin:0;display:flex;flex-wrap:wrap;gap:8px}
+.ap-rules li{font-size:14px;font-weight:700;padding:6px 12px;border-radius:999px;background:#FDE3EC;color:#7A1E3E}
+.ap-rules li::before{content:"✕ ";color:#D81B60}
+.ap-prep{display:grid;gap:18px}
+.ap-prep .card{padding:20px 22px}
+.ap-tag{display:inline-block;font-family:var(--f-lcd);font-size:18px;line-height:1;color:#9BFF7A;background:#0B130B;padding:6px 10px 4px;border-radius:6px;box-shadow:inset 0 0 0 3px #3A3A40}
+.ap-prep h3{margin:10px 0 8px;font-family:var(--f-head);font-weight:400;font-size:20px}
+.ap-prep ul{margin:0;padding-left:20px;display:grid;gap:6px;font-size:16px;line-height:1.55}
+.ap-prep a{color:inherit;text-decoration:underline;text-decoration-color:var(--mm-pink);text-decoration-thickness:2px}
+.ap-dates{list-style:none;padding:0;margin:0;display:grid;gap:10px;max-width:62ch}
+.ap-dates li{display:grid;grid-template-columns:150px 1fr;gap:14px;align-items:baseline;font-size:16px;line-height:1.5;padding:12px 0;border-bottom:2px dashed var(--card-line)}
+.ap-dates b{font-family:var(--f-lcd);font-weight:400;font-size:22px;color:var(--mm-pink-dk);letter-spacing:.02em}
+.ap-luck{font-family:var(--f-head);font-size:clamp(24px,2.6vw,34px);line-height:1.15;margin:48px 0 0;color:var(--mm-pink-dk)}
+.ap-fee{display:flex;flex-direction:column;gap:4px;margin:4px 0 18px;padding:14px 16px;border:2px solid #000;border-radius:12px;background:var(--sign);color:#16170F}
+.ap-fee-lbl{font-weight:800;font-size:13px;text-transform:uppercase;letter-spacing:.08em}
+.ap-fee-row{display:flex;align-items:baseline;gap:14px}
+.ap-fee-row s{font-family:var(--f-head);font-size:26px;opacity:.55;text-decoration-thickness:3px;text-decoration-color:#D81B60}
+.ap-fee-row b{font-family:var(--f-head);font-weight:400;font-size:44px;line-height:1}
+.ap-fee-note{font-size:14px}
+.ap-facts{list-style:none;padding:0;margin:0 0 16px;display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.ap-facts li{font-size:15px;line-height:1.35;padding:10px 12px;border:2px solid var(--card-line);border-radius:10px}
+.ap-facts b{display:block;font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--mm-pink-dk)}
+@media (max-width:640px){.ap-dates li{grid-template-columns:1fr;gap:2px}.ap-facts{grid-template-columns:1fr 1fr}.ap-video{border-radius:14px;margin-bottom:40px}}
+.wrap.ap-top{padding-bottom:0}
+.wrap.ap-main{padding-top:0}
+.ap-video{margin-bottom:56px}
+@media (max-width:640px){.ap-video{margin-bottom:40px}}
+.ap-quick{display:none}
+@media (max-width:900px){.ap-quick{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:-8px 0 36px;padding:12px 14px;border:2px solid #000;border-radius:12px;background:var(--sign);color:#16170F;box-shadow:5px 5px 0 var(--mm-pink)}
+.ap-quick span{font-weight:700;font-size:16px}.ap-quick s{opacity:.55;text-decoration-color:#D81B60;text-decoration-thickness:2px}.ap-quick b{font-family:var(--f-head);font-weight:400;font-size:22px}
+.ap-quick .btn{margin:0;width:auto;padding:10px 16px;font-size:15px}}
+@media (max-width:1100px){</style>
 </head>
 <body>
 <div class="scene" aria-hidden="true"><div class="floor-wrap"><div class="floor"></div></div></div>
@@ -790,40 +835,121 @@ body.on-shop .site-footer{display:none}
 </main>
 
 <!-- ================= ARTIST APPLICATION ================= -->
-<main class="page content" id="page-apply" data-title="Apply for Miami Art Week" hidden>
-  <header class="hero"><div class="paint" data-seed="77"></div><div class="hero-in"><h1 class="hero-title">Apply for Miami Art Week</h1></div></header>
-  <div class="wrap two-col">
+<main class="page content" id="page-apply" data-title="Apply for Red Dot Miami 2026" hidden>
+  <header class="hero"><div class="paint" data-seed="77"></div><div class="hero-in"><h1 class="hero-title">Apply for Red Dot Miami</h1></div></header>
+  <div class="wrap ap-top">
+    <div class="ap-video" id="apVideo">
+      <video src="red-dot-miami-trailer.mp4" poster="red-dot-trailer-poster.jpg" autoplay muted loop playsinline controls preload="metadata" aria-label="Mystry Mart at Red Dot Miami 2025: lines at the machine, bags opening and the crowd, and our return for 2026"></video>
+    </div>
+  </div>
+  <div class="wrap two-col ap-main">
     <div>
-      <p class="lede">Mystry Mart is heading to Miami Art Week, and we want your work in the machine. If you make small, original art, apply below.</p>
+      <p class="lede">Mystry Mart is back at <b>Red Dot Miami</b> during Miami Art Week, <b>December 2–6, 2026</b>, and we want your work in the machine. Here's everything you need to know before you apply.</p>
+      <div class="ap-quick"><span><s>$25</s> <b>$50</b> · Apply by Oct 23</span><button type="button" class="btn" onclick="document.querySelector('.apply-cta').scrollIntoView({behavior:'smooth',block:'start'})">Apply now ↓</button></div>
+
       <h2 class="sec first">How it works</h2>
       <ol class="ol">
-        <li>Fill out our application with a few images of your work.</li>
-        <li>If it's a fit, we'll reach out with next steps.</li>
-        <li>Each piece goes into a sealed Mystry Mart bag with your Instagram handle and a QR code that leads people to you.</li>
+        <li>Apply with your Instagram handle and a few images of your work.</li>
+        <li>We review every application and email you either way.</li>
+        <li>If you're selected, we send a short artist agreement, then you ship your work to us.</li>
+        <li>Each piece is sealed in a Mystry Mart bag with your handle and a QR code that leads collectors straight to you.</li>
         <li>You earn 50% of every sale.</li>
       </ol>
+
+      <h2 class="sec">Why there's an application fee</h2>
+      <p class="ap-p">Red Dot is one of the biggest fairs of Miami Art Week, with heavy press, nonstop foot traffic and booths that cost exhibitors thousands. We have a 100% sell-out streak across our machines, and we want your work to be part of what's next.</p>
+      <ul class="ap-why">
+        <li><b>About $1 per piece.</b> The minimum submission is 50 pieces, so the fee works out to roughly a dollar per piece, plus the 50/50 split on sales.</li>
+        <li><b>We work for you.</b> From the moment your work arrives, we handle everything: jurying, packaging every piece, building your own artist page on our site where people discover you and your work, keeping the machine stocked and maintained all week, and promoting you on social media and to the press.</li>
+        <li><b>The work keeps working.</b> Red Dot is just the start. Selected artists join our ongoing roster, and we keep working with you long after the fair, rotating your pieces through our other locations, where artists get discovered by our partner spaces, commissioned for larger work and featured in the press.</li>
+        <li><b>It covers the event.</b> Shipping the machine to Miami, on-site staff, and everything it takes to run a machine at a major fair.</li>
+      </ul>
+      <div class="callout">Our year-round placements at museums, markets and venues are always <b>free to apply</b>. Fees only apply to large events like Red Dot.</div>
+
+      <h2 class="sec">Why we ask for your Instagram</h2>
+      <p class="ap-p">Not for your follower count. We never select artists by followers. Every bag is branded with your handle, and we feature selected artists across our social channels with posts and promotions made just for you.</p>
+
       <h2 class="sec">What we accept</h2>
       <div class="accept">
         <div class="card yes"><h3>Yes, please</h3><ul><li>Fine art prints (giclée)</li><li>Paintings</li><li>Ceramics</li><li>Other unique oddities</li></ul></div>
         <div class="card no"><h3>Not accepted</h3><ul><li>Stickers</li><li>Zines</li><li>Pins</li><li>Keychains</li></ul></div>
       </div>
-      <p class="size-note"><strong>Size:</strong> every piece must be 5 × 7 inches or smaller.</p>
+      <div class="card ap-rules">
+        <h3>100% original, 100% you</h3>
+        <p>Everything must come from your own hand and imagination. We don't accept:</p>
+        <ul><li>AI-generated work</li><li>Political content</li><li>Celebrities or licensed characters</li></ul>
+      </div>
+
+      <h2 class="sec">How to prepare your work</h2>
+      <p class="ap-p">Every piece drops from the machine, so it needs the right size, weight and protection to land safely, and to look great when it's unwrapped.</p>
+      <div class="ap-prep">
+        <div class="card">
+          <span class="ap-tag">PRINTS + WORK ON PAPER</span>
+          <h3>Matted, signed, 4×6 or 5×7</h3>
+          <ul>
+            <li>Prints must be giclée, sized 4×6 or 5×7. Original drawings and paintings on thin paper follow the same rules.</li>
+            <li>Place each piece in a <a href="https://goldenstateart.com/products/5x7-pre-cut-mat-with-whitecore-fits-4x6-picture-bulk-pack-copy?variant=41248549863499" target="_blank" rel="noopener">5×7 pre-cut white-core mat</a>. It gives the bag the right weight to drop cleanly and presents your work beautifully.</li>
+            <li>Sign every piece.</li>
+            <li>Add a bio, stickers or business cards on the back if you like. Please leave out discount codes and promotions.</li>
+          </ul>
+        </div>
+        <div class="card gold">
+          <span class="ap-tag">PAINTINGS ON CANVAS</span>
+          <h3>5×7 or smaller, sealed</h3>
+          <ul>
+            <li>Use a canvas panel no larger than 5×7, <a href="https://www.amazon.com/dp/B082F76Q3T" target="_blank" rel="noopener">like these</a>, so it fits our packaging.</li>
+            <li>Seal each painting in a <a href="https://www.amazon.com/dp/B076VRP8W3" target="_blank" rel="noopener">clear resealable cello sleeve</a>.</li>
+            <li>Sign every piece.</li>
+            <li>Add a bio, stickers or business cards on the back if you like. Please leave out discount codes and promotions.</li>
+          </ul>
+        </div>
+        <div class="card trim">
+          <span class="ap-tag">CERAMICS</span>
+          <h3>Bubble-wrapped and boxed</h3>
+          <ul>
+            <li>Bubble-wrap each piece and pack it snugly in a small box, or anything that will protect it from the drop.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="callout">Our machines are padded, and fragile pieces go on the lowest rows. Once we open and inspect your package, your work is our responsibility: if anything breaks on our end, we cover it and <b>you still get paid for the sale</b>.</div>
+
+      <h2 class="sec">Key dates</h2>
+      <ol class="ap-dates">
+        <li><b>OCT 23</b><span>Applications close.</span></li>
+        <li><b>AFTER REVIEW</b><span>We email every applicant with a decision. Selected artists receive the artist agreement and our shipping address.</span></li>
+        <li><b>NOV 20</b><span>All work must arrive by this date. Work that arrives later can't go in the Red Dot machine, but we'll place it at our other locations instead.</span></li>
+        <li><b>DEC 2–6</b><span>Red Dot Miami.</span></li>
+        <li><b>WEEK OF DEC 14</b><span>Payouts for everything sold at the fair.</span></li>
+      </ol>
+
+      <p class="ap-luck">Good luck! We can't wait to see what you make.</p>
     </div>
+
     <div class="apply-side">
     <div class="card form-card apply-cta">
-      <p class="eyebrow">Miami Art Week</p>
+      <p class="eyebrow">Red Dot Miami 2026</p>
       <h2 class="cta-title">Ready to apply?</h2>
-      <p>The application takes a few minutes. Have your Instagram handle and 3 to 5 images of your work ready.</p>
+      <div class="ap-fee"><span class="ap-fee-lbl">Application fee</span><span class="ap-fee-row"><s>$25</s><b>$50</b></span><span class="ap-fee-note">Early-bird pricing has ended as the deadline approaches.</span></div>
+      <ul class="ap-facts">
+        <li><b>Deadline</b>October 23, 2026</li>
+        <li><b>Minimum</b>50 pieces</li>
+        <li><b>Your share</b>50% of every sale</li>
+        <li><b>Fee</b>Non-refundable</li>
+      </ul>
+      <p>Have your Instagram handle and 3 to 5 images of your work ready. It takes a few minutes.</p>
       <a class="btn" id="jotformBtn" href="#" target="_blank" rel="noopener">Start the application</a>
       <p class="hint" style="margin-top:14px">Opens our application form in a new tab.</p>
-      <div class="callout small">Want your work in our NYC machines, or to paint a machine? Join our newsletter below or follow <a href="https://www.instagram.com/mystrymart/" target="_blank" rel="noopener">@mystrymart</a> to hear about the next open call.</div>
+      <div class="callout small"><strong>Not the right fit this time?</strong> Our venue placements are free to apply. Join our newsletter below or follow <a href="https://www.instagram.com/mystrymart/" target="_blank" rel="noopener">@mystrymart</a> to hear when the next open call goes live.</div>
     </div>
       <h2 class="sec side-sec">From our artists</h2>
-      <figure class="quote-card"><blockquote>I’ve been working with Mystry Mart for a few years now and have loved being part of it from the start. The team has brought such a fun and exciting concept to life and also been a joy to work with. I’ve also received so many lovely messages from customers who have purchased my art through Mystry Mart, and it always makes me happy to know my work has found a happy home with someone else.</blockquote><figcaption><span class="ph q-photo"><img src="images/artists/flora/photo.webp" alt="" loading="lazy"></span><span><b>Flora Hu</b><a href="flora">Pen and ink artist</a></span></figcaption></figure>
+      <figure class="quote-card"><blockquote>I grew up in the South Florida area and most of my family is still there. When my work was in a Mystry Mart machine during Miami Art Week in 2025, my mom was so excited to visit and get one of my prints. This was the first time my work was sold in Florida, a place so important to me, and I’m grateful to have been able to share it with special people in my life and new people from all over through Mystry Mart.</blockquote><figcaption><span class="ph q-photo"><img src="images/artists/amber-lauder/photo.webp" alt="" loading="lazy"></span><span><b>Amber Lauder</b><a href="amber-lauder">Photographic artist</a></span></figcaption></figure>
       <figure class="quote-card q2"><blockquote>Every time I do a large show selling my work, I get several people who recognize my work from the machine and tell me they got a piece from Mystry Mart at the Brooklyn Museum or House of Yes. As a small artist, it’s SO important to leave a lasting impression, and I feel Mystry Mart helps create a presence for me in the art space and in people’s minds.</blockquote><figcaption><span class="ph q-photo"><img src="images/artists/nyc-mango/photo.webp" alt="" loading="lazy"></span><span><b>NYC Mango</b><a href="nyc-mango">Painter, New York City</a></span></figcaption></figure>
+      <figure class="quote-card"><blockquote>I have been honored to be one of the first artists featured with Mystry Mart and grow with them and all the other amazing artists. Every time I get tagged in a post online and see someone holding my art, it brings a smile to my face. It’s an incredible way to share my work with people who may have never found me before. One of my favorite memories is visiting my art in the Brooklyn Museum for the first time with my partner. After I took all my photos and videos and purchased my own art for my memories, I watched as two girls who were next in line clicked the buttons corresponding with my art and they walked away with a piece of me. I was too shy to say anything but I watched as they unwrapped my artwork and took their videos/photos with it. Someone was able to purchase my artwork right there in the Brooklyn Museum, something I never thought I’d say! I am grateful to Mystry Mart for their continued support and having me along for the experience.</blockquote><figcaption><span class="ph q-photo"><img src="images/artists/vrusso/photo.webp" alt="" loading="lazy"></span><span><b>Victoria Russo</b><a href="vrusso">Illustrator, New Jersey</a></span></figcaption></figure>
+      <figure class="quote-card q2"><blockquote>I’ve been working with Mystry Mart for a few years now and have loved being part of it from the start. The team has brought such a fun and exciting concept to life and also been a joy to work with. I’ve also received so many lovely messages from customers who have purchased my art through Mystry Mart, and it always makes me happy to know my work has found a happy home with someone else.</blockquote><figcaption><span class="ph q-photo"><img src="images/artists/flora/photo.webp" alt="" loading="lazy"></span><span><b>Flora Hu</b><a href="flora">Pen and ink artist</a></span></figcaption></figure>
     </div>
   </div>
 </main>
+
 
 <!-- ================= PRESS ================= -->
 <main class="page content" id="page-press" data-title="Press" hidden>
