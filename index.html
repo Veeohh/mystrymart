@@ -3640,7 +3640,7 @@ function renderLocations(){
   $("#pastGrid").innerHTML=PAST.map(l=>`<article class="card loc">
       <div class="loc-photo">${l.photo?`<img src="${IMGS[l.photo]}" alt="The Mystry Mart machine at ${esc(l.venue)}" loading="lazy">`:`<div class="paint">${doodle(400,225,l.seed,"xMidYMid slice")}</div>`}</div>
       <div class="loc-body"><h3>${esc(l.venue)}</h3><p class="area">${esc(l.area)}</p>${l.note?`<p style="margin:4px 0 0;line-height:1.45">${esc(l.note)}</p>`:""}</div></article>`).join("");
-  const jf=$("#jotformBtn"); jf.href=JOTFORM_URL||APPLY_FALLBACK;
+  const jf=$("#jotformBtn"); jf.href=JOTFORM_URL||APPLY_FALLBACK; jf.addEventListener("click",()=>{ try{ MM_VIEWS("apply button click"); }catch(e){} });
 }
 function renderPress(){
   $("#pressGrid").innerHTML=PRESS.map(p=>`<article class="card clip">
@@ -3774,12 +3774,42 @@ function route(){
   $("#nav").classList.remove("open"); $("#menuBtn").setAttribute("aria-expanded","false");
   if(p==="shop") fit();
   if(!firstRoute){ window.scrollTo(0,0); (page.querySelector("h1")||page).setAttribute("tabindex","-1"); (page.querySelector("h1")||page).focus({preventScroll:true}); }
+  try{ MM_VIEWS(p==="artist"?"artist: "+(artistSlug||""):p==="shop"?"home":p); }catch(e){}
   firstRoute=false;
 }
 addEventListener("hashchange",route);
 
 /* Forms: send to Netlify Forms when live; show a note in previews */
 const LIVE=location.protocol.startsWith("http") && !/claude\.ai|claudeusercontent|anthropic/.test(location.hostname);
+/* ---------- Private view counter (see /site-stats) ----------
+   Sends one tiny note per page view to our own Netlify function. No cookies, no IP addresses, no outside services.
+   Open any page once with ?me=1 to stop counting your own visits on that browser (?me=0 to undo). */
+const MM_VIEWS=(()=>{
+  const q=new URLSearchParams(location.search);
+  try{ if(q.get("me")==="1") localStorage.setItem("mm-nolog","1"); if(q.get("me")==="0") localStorage.removeItem("mm-nolog"); }catch(e){}
+  let muted=false; try{ muted=localStorage.getItem("mm-nolog")==="1"; }catch(e){}
+  if(!LIVE||navigator.webdriver) muted=true;
+  function source(){
+    const u=(q.get("utm_source")||"").toLowerCase(), m=(q.get("utm_medium")||"").toLowerCase();
+    if(u) return (/paid|cpc|ads?$/.test(m)?"Ad: ":"")+u;
+    if(q.get("fbclid")) return "Facebook or Instagram";
+    let h=""; try{ h=new URL(document.referrer).hostname.replace(/^www\./,""); }catch(e){}
+    if(!h) return "Direct or typed link";
+    if(/mystrymart\.com$/.test(h)) return "Internal";
+    if(/instagram/.test(h)) return "Instagram"; if(/facebook|fb\.com/.test(h)) return "Facebook";
+    if(/google\./.test(h)) return "Google"; if(/tiktok/.test(h)) return "TikTok"; if(h==="t.co"||/twitter|x\.com/.test(h)) return "X (Twitter)";
+    if(/linktr/.test(h)) return "Linktree"; if(/bing\./.test(h)) return "Bing";
+    return h;
+  }
+  let first=true;
+  return function(page){
+    if(muted) return;
+    let unique=false; const today=new Date().toISOString().slice(0,10);
+    try{ if(localStorage.getItem("mm-seen")!==today){ localStorage.setItem("mm-seen",today); unique=true; } }catch(e){}
+    const src=first?source():"Internal"; first=false;
+    try{ fetch(API+"/views",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({page,src,unique}),keepalive:true}).catch(()=>{}); }catch(e){}
+  };
+})();
 document.querySelectorAll("form[data-form]").forEach(form=>{
   form.addEventListener("submit",async e=>{
     e.preventDefault();
