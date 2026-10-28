@@ -720,7 +720,12 @@ body.on-shop .site-footer{display:none}
 @media (max-width:900px){.ap-quick{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:-8px 0 36px;padding:12px 14px;border:2px solid #000;border-radius:12px;background:var(--sign);color:#16170F;box-shadow:5px 5px 0 var(--mm-pink)}
 .ap-quick span{font-weight:700;font-size:16px}.ap-quick s{opacity:.55;text-decoration-color:#D81B60;text-decoration-thickness:2px}.ap-quick b{font-family:var(--f-head);font-weight:400;font-size:22px}
 .ap-quick .btn{margin:0;width:auto;padding:10px 16px;font-size:15px}}
-@media (max-width:1100px){</style>
+@media (max-width:1100px){.ap-details{background:none;border:0;font:700 15px var(--f-body,inherit);text-decoration:underline;cursor:pointer;color:inherit;padding:10px 4px;margin-top:6px}
+.ap-sticky{display:none}
+@media (max-width:760px){body:not(.on-shop) #page-apply:not([hidden]) ~ .ap-sticky, #page-apply:not([hidden]) .ap-sticky.show{display:flex;position:fixed;left:12px;right:12px;bottom:12px;z-index:60;align-items:center;justify-content:space-between;gap:10px;background:#D9F53B;color:#141418;border:3px solid #141418;border-radius:14px;box-shadow:5px 5px 0 #6B4BFF;padding:12px 16px;text-decoration:none;font-family:var(--f-head);font-size:16px}
+#page-apply:not([hidden]) .ap-sticky span{font-family:var(--f-body,inherit);font-weight:700;font-size:13px}
+#page-apply{padding-bottom:90px}}
+</style>
 </head>
 <body>
 <div class="scene" aria-hidden="true"><div class="floor-wrap"><div class="floor"></div></div></div>
@@ -846,7 +851,8 @@ body.on-shop .site-footer{display:none}
   <div class="wrap two-col ap-main">
     <div>
       <p class="lede">Mystry Mart is back at <b>Red Dot Miami</b> during Miami Art Week, <b>December 2–6, 2026</b>, and we want your work in the machine. Here's everything you need to know before you apply.</p>
-      <div class="ap-quick"><span><s>$25</s> <b>$50</b> · Apply by Oct 23</span><button type="button" class="btn" onclick="document.querySelector('.apply-cta').scrollIntoView({behavior:'smooth',block:'start'})">Apply now ↓</button></div>
+      <div class="ap-quick"><span><s>$25</s> <b>$50</b> · Apply by Oct 23</span><a class="btn js-jot" href="https://pci.jotform.com/form/262496873752068" target="_blank" rel="noopener">Start the application</a><button type="button" class="ap-details" onclick="document.querySelector('.apply-cta').scrollIntoView({behavior:'smooth',block:'start'})">Fee &amp; details ↓</button></div>
+      <a class="ap-sticky js-jot" href="https://pci.jotform.com/form/262496873752068" target="_blank" rel="noopener"><span>Apply by Oct 23</span><b>Start application ›</b></a>
 
       <h2 class="sec first">How it works</h2>
       <ol class="ol">
@@ -2365,26 +2371,6 @@ const MORE_ARTISTS = {
   "extra": null,
   "profile": "https://www.mystrymart.com/chaotic_bell"
  },
- "eixeldesigns": {
-  "name": null,
-  "studio": "Eixel Designs",
-  "handle": "eixeldesigns",
-  "site": null,
-  "siteLabel": null,
-  "bio": "Bio coming soon.",
-  "photo": "images/artists/eixeldesigns/photo.webp",
-  "work": [
-   "images/artists/eixeldesigns/work-1.webp",
-   "images/artists/eixeldesigns/work-2.webp",
-   "images/artists/eixeldesigns/work-3.webp",
-   "images/artists/eixeldesigns/work-4.webp",
-   "images/artists/eixeldesigns/work-5.webp",
-   "images/artists/eixeldesigns/work-6.webp",
-   "images/artists/eixeldesigns/work-7.webp"
-  ],
-  "extra": null,
-  "profile": "https://www.mystrymart.com/eixeldesigns"
- },
  "emyetheartist": {
   "name": "Emye",
   "studio": "Emye the Artist",
@@ -3640,7 +3626,7 @@ function renderLocations(){
   $("#pastGrid").innerHTML=PAST.map(l=>`<article class="card loc">
       <div class="loc-photo">${l.photo?`<img src="${IMGS[l.photo]}" alt="The Mystry Mart machine at ${esc(l.venue)}" loading="lazy">`:`<div class="paint">${doodle(400,225,l.seed,"xMidYMid slice")}</div>`}</div>
       <div class="loc-body"><h3>${esc(l.venue)}</h3><p class="area">${esc(l.area)}</p>${l.note?`<p style="margin:4px 0 0;line-height:1.45">${esc(l.note)}</p>`:""}</div></article>`).join("");
-  const jf=$("#jotformBtn"); jf.href=JOTFORM_URL||APPLY_FALLBACK; jf.addEventListener("click",()=>{ try{ MM_VIEWS("apply button click"); }catch(e){} });
+  const jf=$("#jotformBtn"); jf.href=JOTFORM_URL||APPLY_FALLBACK; jf.addEventListener("click",()=>{ try{ MM_VIEWS("apply button click"); }catch(e){} }); try{ const q=document.querySelector(".ap-quick"), st=document.querySelector(".ap-sticky"); new IntersectionObserver(es=>es.forEach(e=>st.classList.toggle("show",!e.isIntersecting&&e.boundingClientRect.top<0))).observe(q); }catch(e){} document.querySelectorAll(".js-jot").forEach(x=>{ x.href=JOTFORM_URL||APPLY_FALLBACK; x.addEventListener("click",()=>{ try{ MM_VIEWS("apply button click"); }catch(e){} }); });
 }
 function renderPress(){
   $("#pressGrid").innerHTML=PRESS.map(p=>`<article class="card clip">
@@ -3660,7 +3646,7 @@ const SLUG_TO_ARTIST={};
 Object.entries(ARTISTS).forEach(([code,a])=>{ const sl=slugOf(a); if(sl&&!SLUG_TO_ARTIST[sl]) SLUG_TO_ARTIST[sl]={code,a}; });
 Object.entries(MORE_ARTISTS).forEach(([sl,a])=>{ if(!SLUG_TO_ARTIST[sl.toLowerCase()]) SLUG_TO_ARTIST[sl.toLowerCase()]={code:null,a}; });
 /* Directory: one card per artist (an artist with two QR addresses appears once) */
-const FEATURED=["c1mah-keychains", "spacerabbitstudio", "nyc-mango", "flora", "zhang-zheyi", "breadslug", "artworkbymelissa-s", "msstudioworks", "myformsmostbeautiful", "diana-teeter", "beemystique", "tannin-arceo", "sqribbz", "unlicensedkarebear", "tinybs", "emthecreative", "tanner-bosma-citysscapes", "erinkatearcher", "karayanceystudio", "maridad-studio", "yushinkatoart", "nothingbones", "artbyfaneshafabre", "saraantoinettemartin", "jennywalker", "topbunartist", "stitch-prism", "zoexiao", "chaotic_bell", "cloverleafpie", "robotbananacatdesigns", "margo-moore", "katrin-art", "jettakayama", "ethanminsker", "erhoffman", "artworldanna", "amber-lauder", "bluepaintkat", "cghallart", "chagoart", "eixeldesigns"];
+const FEATURED=["c1mah-keychains", "spacerabbitstudio", "nyc-mango", "flora", "zhang-zheyi", "breadslug", "artworkbymelissa-s", "msstudioworks", "myformsmostbeautiful", "diana-teeter", "beemystique", "tannin-arceo", "sqribbz", "unlicensedkarebear", "tinybs", "emthecreative", "tanner-bosma-citysscapes", "erinkatearcher", "karayanceystudio", "maridad-studio", "yushinkatoart", "nothingbones", "artbyfaneshafabre", "saraantoinettemartin", "jennywalker", "topbunartist", "stitch-prism", "zoexiao", "chaotic_bell", "cloverleafpie", "robotbananacatdesigns", "margo-moore", "katrin-art", "jettakayama", "ethanminsker", "erhoffman", "artworldanna", "amber-lauder", "bluepaintkat", "cghallart", "chagoart"];
 const DIRECTORY=(()=>{ const seen=new Set(), out=[];
   Object.entries(SLUG_TO_ARTIST).forEach(([sl,{a}])=>{ const key=(a.handle||a.studio).toLowerCase(); if(seen.has(key)) return; seen.add(key); out.push({slug:sl,a}); });
   /* Featured artists first, in this order; everyone else after, A to Z (the Artists page shuffles that second group on every visit) */
