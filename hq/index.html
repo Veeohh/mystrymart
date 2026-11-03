@@ -315,7 +315,7 @@ function renderTeam_(){
   const card=(o,isDone)=>{const a=byId(o.artist)||{name:o.artistName||'Artist',handle:''};return `<article class="sc ${isDone?'done':''}">
     <div class="who">${avatar(a)}<div><b>${esc(a.name)}</b><span>${esc(a.handle)} · ${QTY} pieces</span></div></div>
     <div class="trk">${esc(o.carrier||'')} ${esc(o.tracking||'')}</div>
-    <div class="meta">Ordered ${fmtD(o.placed)}${o.shipped?' · shipped '+fmtD(o.shipped):''}${isDone?' · received '+fmtD(o.received):''}</div>
+    <div class="meta">Ordered ${fmtD(o.placed)}${o.shipped?' · shipped '+fmtD(o.shipped):''}${o.via?' · '+esc(o.via):''}${isDone?' · received '+fmtD(o.received):''}</div>
     ${isDone?'<span class="chip st" style="background:var(--hot);align-self:flex-start">Received · artist notified</span>':`<button class="btn" type="button" data-recv="${esc(o.id)}">Mark received</button>`}${cancelUi(o)}</article>`;};
   $('ship').innerHTML=(tr.length?tr.map(o=>card(o,false)).join(''):'<p class="empty">No boxes on the way. When an artist adds a tracking number, it shows up here.</p>')+done.map(o=>card(o,true)).join('');
   $('importBox').hidden=!(loaded&&ARTISTS.length===0);
