@@ -158,7 +158,10 @@ function findTracking(text, subject = "") {
 }
 async function applyTracking(o, carrier, tracking, via) {
   const art = (await getJ(`artist/${o.artist}`)) || { id: o.artist, name: o.artistName, email: "" };
-  let tn = String(tracking).trim().slice(0, 80); const sq = tn.replace(/[\s-]/g, ""); if (/^[A-Z0-9]+$/i.test(sq)) tn = sq.toUpperCase();
+  let tn = String(tracking).trim().slice(0, 80);
+  const f = findTracking(tn);
+  if (f) { tn = f.tracking; if (f.carrier !== "Other") carrier = f.carrier; }
+  else { const sq = tn.replace(/[\s-]/g, ""); if (/^[A-Z0-9]+$/i.test(sq)) tn = sq.toUpperCase(); }
   Object.assign(o, { status: "transit", carrier: CARRIERS.includes(carrier) ? carrier : "Other", tracking: tn, shipped: now(), via });
   await setJ(`order/${o.id}`, o);
   await addAlert(art, "tracking", o);
@@ -369,9 +372,7 @@ export default async (req) => {
     const tracking = String(b.tracking || "").trim().slice(0, 80);
     const carrier = ["USPS", "UPS", "FedEx", "DHL", "Other"].includes(b.carrier) ? b.carrier : "Other";
     if (tracking.length < 6) return fail("Enter the full tracking number.");
-    Object.assign(o, { status: "transit", carrier, tracking, shipped: now(), via: "in the portal" });
-    await setJ(`order/${o.id}`, o);
-    await addAlert(s.artist, "tracking", o);
+    await applyTracking(o, carrier, tracking, "in the portal");
     return json(await portalPayload(s));
   }
 
