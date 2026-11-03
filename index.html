@@ -73,6 +73,7 @@ img{max-width:100%}
 .nav a:hover{background:#2C2B33}
 .nav a[aria-current="page"]{background:linear-gradient(90deg,var(--mm-pink),var(--mm-gold));color:var(--ink-black)}
 .icon-btn{background:#2C2B33;color:#F3F0F4;border:0;border-radius:10px;width:42px;height:42px;display:grid;place-items:center;flex:none}
+a.icon-btn{text-decoration:none}a.icon-btn:hover{background:#3A3942}
 .menu-btn{display:none}
 
 /* ---------- Layout ---------- */
@@ -742,6 +743,7 @@ body.on-shop .site-footer{display:none}
     <a href="#shop" data-nav="shop">Shop</a><a href="#apply" data-nav="apply" class="nav-apply"><span aria-hidden="true">✦</span> Apply</a><a href="#locations" data-nav="locations">Locations</a><a href="#artists" data-nav="artists">Artists</a>
     <a href="#press" data-nav="press">Press</a><a href="#about" data-nav="about">About</a><a href="#contact" data-nav="contact">Contact</a><a href="#faq" data-nav="faq">FAQ</a>
   </nav>
+  <a class="icon-btn artist-login" href="/portal/" aria-label="Artist login" title="Artist login"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/></svg></a>
   <button class="icon-btn" id="soundBtn" aria-pressed="true" aria-label="Sound on">
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path id="waves" d="M16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12"/></svg>
   </button>
