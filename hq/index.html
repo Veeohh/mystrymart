@@ -282,7 +282,7 @@ async function api(a,body){
 }
 
 let ARTISTS=[],ORDERS=[],ALERTS=[],PAYOUTS=[],loaded=false;
-const sel={},ui={editPrice:null,confirm:null,editing:null,q:'',deal:'',show:'active',busy:false};
+const sel={},ui={cancel:null,editPrice:null,confirm:null,editing:null,q:'',deal:'',show:'active',busy:false};
 const byId=id=>ARTISTS.find(a=>a.id===id);
 const latest=aid=>ORDERS.filter(o=>o.artist===aid).sort((a,b)=>b.placed-a.placed)[0];
 const isOpen=o=>o&&o.status!=='received';
@@ -298,6 +298,9 @@ function statusChip(o){if(!o)return'';
   if(o.status==='ordered')return'<span class="chip st" style="background:var(--warm)">Ordered '+fmtD(o.placed)+' · waiting on tracking</span>';
   if(o.status==='transit')return'<span class="chip st" style="background:#A99BFF">In transit</span>';
   return'<span class="chip st" style="background:var(--hot)">Received '+fmtD(o.received)+'</span>';}
+function cancelUi(o){
+  if(ui.cancel!==o.id)return`<span class="links"><button class="linkbtn" type="button" data-cx="${esc(o.id)}">Cancel order</button></span>`;
+  return`<div class="confirm"><span>Cancel this order? It's removed from HQ, Payouts and ${esc(o.artistName||'the artist')}'s portal.</span><div><button class="btn danger sm" type="button" data-cxyes="${esc(o.id)}" data-n="1">Cancel + email artist</button><button class="btn ghost sm" type="button" data-cxyes="${esc(o.id)}" data-n="0">Cancel, no email</button><button class="btn ghost sm" type="button" data-cxno>Keep</button></div></div>`;}
 function split(n){if(!n)return[];const b=Math.floor(QTY/n),r=QTY-b*n;return Array.from({length:n},(_,i)=>b+(i<r?1:0));}
 function renderTeam(){
   const pv=ui.editPrice&&$('pe-'+ui.editPrice);const keep=pv?{v:pv.value,f:document.activeElement===pv}:null;
@@ -313,7 +316,7 @@ function renderTeam_(){
     <div class="who">${avatar(a)}<div><b>${esc(a.name)}</b><span>${esc(a.handle)} · ${QTY} pieces</span></div></div>
     <div class="trk">${esc(o.carrier||'')} ${esc(o.tracking||'')}</div>
     <div class="meta">Ordered ${fmtD(o.placed)}${o.shipped?' · shipped '+fmtD(o.shipped):''}${isDone?' · received '+fmtD(o.received):''}</div>
-    ${isDone?'<span class="chip st" style="background:var(--hot);align-self:flex-start">Received · artist notified</span>':`<button class="btn" type="button" data-recv="${esc(o.id)}">Mark received</button>`}</article>`;};
+    ${isDone?'<span class="chip st" style="background:var(--hot);align-self:flex-start">Received · artist notified</span>':`<button class="btn" type="button" data-recv="${esc(o.id)}">Mark received</button>`}${cancelUi(o)}</article>`;};
   $('ship').innerHTML=(tr.length?tr.map(o=>card(o,false)).join(''):'<p class="empty">No boxes on the way. When an artist adds a tracking number, it shows up here.</p>')+done.map(o=>card(o,true)).join('');
   $('importBox').hidden=!(loaded&&ARTISTS.length===0);
   const q=ui.q.toLowerCase();
@@ -342,7 +345,7 @@ function row(a,max){
   else action=`${open?`<small>${o.status==='ordered'?'An order is open. Waiting on their tracking number.':'Their last order is on the way.'}</small>`:''}
     <span class="sum">${picked.length?picked.length+' piece'+(picked.length>1?'s':'')+' picked · ':'Artist’s choice of pieces · '}${cost}</span>
     <button class="btn" type="button" data-order="${esc(a.id)}" ${open?'disabled':''}>Order ${QTY} pieces</button>
-    <span class="links"><button class="linkbtn" type="button" data-edit="${esc(a.id)}">Edit</button><button class="linkbtn" type="button" data-rm="${esc(a.id)}">Remove</button></span>`;
+    <span class="links"><button class="linkbtn" type="button" data-edit="${esc(a.id)}">Edit</button><button class="linkbtn" type="button" data-rm="${esc(a.id)}">Remove</button></span>${open&&o.status==='ordered'?cancelUi(o):''}`;
   return `<div class="row ${a.active===false?'off':''}">
     <div><div class="who">${avatar(a)}<div><b>${esc(a.name)}</b><span>${a.studio?esc(a.studio)+' · ':''}${esc(a.handle)}</span></div></div>
       ${(a.clicks||0)>0?`<div class="clk"><div class="bar"><i style="width:${Math.round(a.clicks/max*100)}%"></i></div><span>${a.clicks}</span><span style="font-family:var(--f-body);font-size:12px;color:var(--mute)">visits</span></div>`:''}
@@ -357,6 +360,9 @@ team.addEventListener('click',async e=>{const t=e.target.closest('button');if(!t
   if(t.dataset.psave){savePrice(t.dataset.psave);return;}
   if(t.dataset.order){const a=byId(t.dataset.order);t.disabled=true;if(await act('order',{artistId:a.id,works:sel[a.id]||[]},'Order placed for '+a.name+'.'))sel[a.id]=[];renderTeam();return;}
   if(t.dataset.recv){t.disabled=true;await act('received',{orderId:t.dataset.recv},'Marked received.');return;}
+  if(t.dataset.cx){ui.cancel=t.dataset.cx;renderTeam();return;}
+  if(t.hasAttribute('data-cxno')){ui.cancel=null;renderTeam();return;}
+  if(t.dataset.cxyes){const id=t.dataset.cxyes,n=t.dataset.n==='1';ui.cancel=null;t.disabled=true;await act('cancel',{orderId:id,notify:n},n?'Order cancelled. Artist emailed.':'Order cancelled.');return;}
   if(t.dataset.edit){openForm(byId(t.dataset.edit));return;}
   if(t.dataset.rm){ui.confirm=t.dataset.rm;renderTeam();return;}
   if(t.hasAttribute('data-rmno')){ui.confirm=null;renderTeam();return;}
