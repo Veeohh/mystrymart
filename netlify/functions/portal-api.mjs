@@ -81,7 +81,7 @@ async function addAlert(a, kind, order) {
     emailed = await sendMail(a.email, subj, [`Hi ${String(a.name).split(" ")[0]},`, body], { label: "Open your artist portal", href: site() + "/portal/" });
   }
   const id = `${now().toString(36)}${randomBytes(3).toString("hex")}`;
-  const al = { id, artist: a.id, artistName: a.name, email: kind === "tracking" ? "team" : a.email, kind, subj, body, t: now(), emailed, forTeam: kind === "tracking" };
+  const al = { id, artist: a.id, artistName: a.name, email: kind === "tracking" ? "team" : a.email, kind, subj, body, t: now(), emailed, forTeam: kind === "tracking", order: order?.id || null };
   await setJ(`alert/${id}`, al);
   return al;
 }
@@ -275,6 +275,25 @@ export default async (req) => {
     const art = (await getJ(`artist/${o.artist}`)) || { id: o.artist, name: o.artistName, email: "" };
     await addAlert(art, "received", o);
     return json(await hqPayload());
+  }
+  if (a === "cancel") {
+    const o = await getJ(`order/${safeId(b.orderId)}`); if (!o) return fail("Order not found.", 404);
+    await del(`order/${o.id}`);
+    const t0 = (o.placed || 0) - 5000, t1 = (o.received || o.shipped || o.placed || 0) + 5000;
+    for (const al of await listJ("alert/")) {
+      if (al.order === o.id || (!al.order && al.artist === o.artist && al.t >= t0 && al.t <= t1)) await del(al._key);
+    }
+    let emailed = false;
+    if (b.notify) {
+      const art = await getJ(`artist/${o.artist}`);
+      const d = new Date(o.placed).toLocaleDateString("en-US", { month: "long", day: "numeric", timeZone: "America/New_York" });
+      if (art?.email) emailed = await sendMail(art.email, "Please disregard our order email", [
+        `Hi ${String(art.name).split(" ")[0]},`,
+        `Our order email from ${d} was sent by mistake while we were testing our new artist portal. There's no order right now, so please don't ship anything.`,
+        "Sorry for the mix-up, and thank you for being part of Mystry Mart!",
+      ]);
+    }
+    return json({ emailed, ...(await hqPayload()) });
   }
   if (a === "order-paid") {
     const o = await getJ(`order/${safeId(b.orderId)}`); if (!o) return fail("Order not found.", 404);
