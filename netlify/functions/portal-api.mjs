@@ -8,8 +8,11 @@
 //   MAIL_FROM        optional, default "Mystry Mart <orders@mystrymart.com>" (domain must be verified in Resend)
 //   TEAM_EMAIL       optional, where "tracking received" alerts go, default info@mystrymart.com
 //   DEV_SHOW_LINKS   optional, set to 1 ONLY while testing without Resend: login links are shown on screen
+//   INBOUND_DOMAIN   optional, domain that receives email through Resend (e.g. "in.mystrymart.com"). When set, each
+//                    order gets its own reply address (t-<code>@INBOUND_DOMAIN) and replies/label emails add tracking.
+//   RESEND_WEBHOOK_SECRET  signing secret ("whsec_...") of the Resend webhook that posts email.received to ?a=inbound
 import { getStore } from "@netlify/blobs";
-import { createHash, randomBytes } from "node:crypto";
+import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 
 const QTY = 50;
 const LOGIN_MIN = 15;
@@ -47,20 +50,21 @@ const artists = () => listJ("artist/");
 const orders = () => listJ("order/");
 
 /* ---------------- email ---------------- */
-async function sendMail(to, subject, lines, button) {
+async function sendMail(to, subject, lines, button, opts = {}) {
   const key = env("RESEND_API_KEY");
   if (!key || !to) return false;
   const html = `<div style="font-family:Arial,Helvetica,sans-serif;max-width:520px;margin:0 auto;padding:24px;color:#141418">
     <div style="font-weight:800;font-size:20px;color:#BE3F6B;margin-bottom:16px">MYSTRY MART</div>
     ${lines.map((l) => `<p style="font-size:16px;line-height:1.5;margin:0 0 14px">${esc(l)}</p>`).join("")}
     ${button ? `<p style="margin:22px 0"><a href="${esc(button.href)}" style="background:#D9F53B;color:#141418;border:3px solid #141418;border-radius:10px;padding:12px 20px;font-weight:800;text-decoration:none;display:inline-block">${esc(button.label)}</a></p>` : ""}
-    <p style="font-size:12px;color:#77727E;margin-top:28px">Mystry Mart · mystrymart.com · Questions? Reply to this email.</p></div>`;
-  const text = lines.join("\n\n") + (button ? `\n\n${button.label}: ${button.href}` : "");
+    ${opts.extraHtml || ""}
+    <p style="font-size:12px;color:#77727E;margin-top:28px">Mystry Mart · mystrymart.com · ${esc(opts.footer || "Questions? Reply to this email.")}</p></div>`;
+  const text = lines.join("\n\n") + (button ? `\n\n${button.label}: ${button.href}` : "") + (opts.extraText ? "\n\n" + opts.extraText : "");
   try {
     const r = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ from: env("MAIL_FROM") || "Mystry Mart <orders@mystrymart.com>", to: [to], subject, html, text, reply_to: env("TEAM_EMAIL") || "info@mystrymart.com" }),
+      body: JSON.stringify({ from: env("MAIL_FROM") || "Mystry Mart <orders@mystrymart.com>", to: [to], subject, html, text, reply_to: opts.replyTo || env("TEAM_EMAIL") || "info@mystrymart.com" }),
     });
     return r.ok;
   } catch { return false; }
@@ -68,22 +72,158 @@ async function sendMail(to, subject, lines, button) {
 
 async function addAlert(a, kind, order) {
   const subj = kind === "order" ? `New Mystry Mart order: ${QTY} pieces` : kind === "received" ? "Your pieces arrived" : "Tracking number received";
+  const via = order?.via ? ` (${order.via})` : "";
   const body =
     kind === "order"
-      ? `We placed an order for ${QTY} pieces${order.lines?.length ? ` (${order.lines.map((l) => l.qty).join(" + ")})` : ", your choice of pieces"}. Please ship within 14 days and add your tracking number in your portal.`
+      ? `We placed an order for ${QTY} pieces${order.lines?.length ? ` (${order.lines.map((l) => l.qty).join(" + ")})` : ", your choice of pieces"}. Please ship within 14 days and send us your tracking number.`
       : kind === "received"
       ? `We received your ${QTY} pieces. Thank you! They will go into the machine soon.`
-      : `${a.name} sent tracking for their ${QTY}-piece order: ${order.carrier} ${order.tracking}.`;
+      : `${a.name} sent tracking for their ${QTY}-piece order: ${order.carrier} ${order.tracking}${via}.`;
   let emailed = false;
   if (kind === "tracking") {
     emailed = await sendMail(env("TEAM_EMAIL") || "info@mystrymart.com", `Tracking from ${a.name}`, [body], { label: "Open HQ", href: site() + "/hq/" });
   } else {
-    emailed = await sendMail(a.email, subj, [`Hi ${String(a.name).split(" ")[0]},`, body], { label: "Open your artist portal", href: site() + "/portal/" });
+    if (kind === "order" && order.tk) {
+      const addr = inboxFor(order);
+      const how = addr
+        ? [`Three easy ways to send your tracking number, no login needed:`,
+           `1. Reply to this email with the tracking number.`,
+           `2. When you buy your label on Pirate Ship (or any label site), put ${addr} as the recipient's email. Your tracking gets to us automatically.`,
+           `3. Tap the button below and paste it in.`]
+        : [`When it ships, tap the button below and paste in your tracking number. No login needed.`];
+      emailed = await sendMail(a.email, subj, [`Hi ${String(a.name).split(" ")[0]},`, body, ...how],
+        { label: "Add tracking number", href: `${site()}/portal/?track=${order.tk}` },
+        { replyTo: addr || undefined, footer: addr ? "Replies to this email go to this order. Questions? Write to info@mystrymart.com." : undefined,
+          extraHtml: `<p style="font-size:14px;color:#77727E;margin:0">You can also see all your orders in your <a href="${esc(site() + "/portal/")}" style="color:#BE3F6B">artist portal</a>.</p>`,
+          extraText: `Your artist portal: ${site()}/portal/` });
+    } else {
+      emailed = await sendMail(a.email, subj, [`Hi ${String(a.name).split(" ")[0]},`, body], { label: "Open your artist portal", href: site() + "/portal/" });
+    }
   }
   const id = `${now().toString(36)}${randomBytes(3).toString("hex")}`;
   const al = { id, artist: a.id, artistName: a.name, email: kind === "tracking" ? "team" : a.email, kind, subj, body, t: now(), emailed, forTeam: kind === "tracking", order: order?.id || null };
   await setJ(`alert/${id}`, al);
   return al;
+}
+
+/* ---------------- tracking by email / one-tap link ---------------- */
+const inboxFor = (o) => (env("INBOUND_DOMAIN") && o.tk ? `t-${o.tk}@${env("INBOUND_DOMAIN").replace(/^@/, "")}` : "");
+async function orderByTk(tk) {
+  tk = String(tk || "").toLowerCase();
+  if (!/^[0-9a-f]{12}$/.test(tk)) return null;
+  const idx = await getJ(`tk/${tk}`);
+  return idx ? await getJ(`order/${idx.order}`) : null;
+}
+const CARRIERS = ["USPS", "UPS", "FedEx", "DHL", "Other"];
+function guessCarrier(n, ctx = "") {
+  if (/^1Z/i.test(n)) return "UPS";
+  if (/^[A-Z]{2}\d{9}US$/i.test(n) || /^9\d{19,21}$/.test(n) || /^\d{26}$/.test(n)) return "USPS";
+  if (/fedex/i.test(ctx) && /^\d{12,15}$/.test(n)) return "FedEx";
+  if (/dhl/i.test(ctx) && /^\d{10,11}$/.test(n)) return "DHL";
+  if (/^\d{12}$|^\d{15}$/.test(n)) return "FedEx";
+  if (/usps|postal/i.test(ctx)) return "USPS";
+  return "Other";
+}
+function htmlToText(h) {
+  return String(h || "").replace(/<(script|style)[\s\S]*?<\/\1>/gi, " ").replace(/<br\s*\/?>|<\/(p|div|tr|li|h\d)>/gi, "\n")
+    .replace(/<a\b[^>]*href="([^"]*)"[^>]*>/gi, " $1 ").replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&#(\d+);/g, (_, d) => String.fromCharCode(+d)).replace(/&[a-z]+;/g, " ");
+}
+// Only the new part of a reply: drop quoted lines and everything after "On ... wrote:" / forwarded-original markers.
+function newPart(txt) {
+  const lines = String(txt || "").split(/\r?\n/);
+  const out = [];
+  for (const l of lines) {
+    if (/^\s*On .{4,200}wrote:\s*$/i.test(l) || /^-{2,}\s*Original Message/i.test(l) || /^\s*From:\s.*mystrymart/i.test(l)) break;
+    if (/^\s*>/.test(l)) continue;
+    out.push(l);
+  }
+  return out.join("\n");
+}
+function findTracking(text, subject = "") {
+  const ctx = subject + "\n" + text;
+  const cands = [];
+  const add = (raw, w) => { const n = raw.replace(/[\s-]/g, "").toUpperCase(); if (!cands.some((c) => c.n === n)) cands.push({ n, w }); };
+  for (const m of ctx.matchAll(/(?:tLabels|tracknumbers|trackingnumber|tracknum|tracking_?number|trknbr|track(?:ing)?\/?)=?([A-Z0-9]{10,34})/gi)) add(m[1], 9);
+  for (const m of ctx.matchAll(/\b1Z[0-9A-Z]{16}\b/gi)) add(m[0], 8);
+  for (const m of ctx.matchAll(/\b[A-Z]{2}\d{9}US\b/g)) add(m[0], 7);
+  for (const m of ctx.matchAll(/\b9\d{3}(?:[ -]?\d{4}){4}(?:[ -]?\d{2,4})?\b/g)) add(m[0], 7);
+  for (const m of ctx.matchAll(/\b9\d{19,25}\b/g)) add(m[0], 6);
+  for (const m of ctx.matchAll(/\b\d{12}\b|\b\d{15}\b/g)) add(m[0], /fedex/i.test(ctx) ? 5 : 2);
+  for (const m of ctx.matchAll(/\b\d{10}\b/g)) if (/dhl/i.test(ctx)) add(m[0], 4);
+  const ok = cands.filter((c) => c.n.length >= 10 && c.n.length <= 34 && !/^0+$/.test(c.n) && (/\d{8}/.test(c.n) || /^1Z/.test(c.n)));
+  ok.sort((a, b) => b.w - a.w);
+  const best = ok[0];
+  return best ? { tracking: best.n, carrier: guessCarrier(best.n, ctx) } : null;
+}
+async function applyTracking(o, carrier, tracking, via) {
+  const art = (await getJ(`artist/${o.artist}`)) || { id: o.artist, name: o.artistName, email: "" };
+  let tn = String(tracking).trim().slice(0, 80); const sq = tn.replace(/[\s-]/g, ""); if (/^[A-Z0-9]+$/i.test(sq)) tn = sq.toUpperCase();
+  Object.assign(o, { status: "transit", carrier: CARRIERS.includes(carrier) ? carrier : "Other", tracking: tn, shipped: now(), via });
+  await setJ(`order/${o.id}`, o);
+  await addAlert(art, "tracking", o);
+  return o;
+}
+function svixOk(req, raw) {
+  const secret = env("RESEND_WEBHOOK_SECRET");
+  if (!secret) return false;
+  const id = req.headers.get("svix-id"), ts = req.headers.get("svix-timestamp"), sigs = req.headers.get("svix-signature") || "";
+  if (!id || !ts || Math.abs(now() / 1000 - Number(ts)) > 300) return false;
+  const key = Buffer.from(secret.replace(/^whsec_/, ""), "base64");
+  const want = createHmac("sha256", key).update(`${id}.${ts}.${raw}`).digest();
+  return sigs.split(" ").some((s) => {
+    const [v, b64] = s.split(","); if (v !== "v1" || !b64) return false;
+    const got = Buffer.from(b64, "base64");
+    return got.length === want.length && timingSafeEqual(got, want);
+  });
+}
+async function forwardToTeam(subject, lines) {
+  return sendMail(env("TEAM_EMAIL") || "info@mystrymart.com", subject, lines, { label: "Open HQ", href: site() + "/hq/" });
+}
+async function handleInbound(req) {
+  const raw = await req.text();
+  if (!svixOk(req, raw)) return fail("Bad signature", 401);
+  let ev; try { ev = JSON.parse(raw); } catch { return fail("Bad body"); }
+  if (ev.type !== "email.received" || !ev.data?.email_id) return json({ ok: true, skipped: true });
+  const d = ev.data;
+  const seen = `inb/${safeId(d.email_id)}`;
+  if (await getJ(seen)) return json({ ok: true, dup: true });
+  await setJ(seen, { t: now() });
+  let full = {};
+  try {
+    const r = await fetch(`https://api.resend.com/emails/receiving/${encodeURIComponent(d.email_id)}`, { headers: { Authorization: `Bearer ${env("RESEND_API_KEY")}` } });
+    if (r.ok) full = await r.json();
+  } catch {}
+  const bare = (s) => { s = String(s || ""); const m = s.match(/<([^>]+)>/); return cleanEmail(m ? m[1] : s); };
+  const from = bare(d.from) || bare(full.from);
+  const subject = String(full.subject || d.subject || "");
+  const body = full.text || htmlToText(full.html);
+  const addrs = [...(d.to || []), ...(d.received_for || []), ...(full.to || []), ...(d.cc || [])].map(String);
+  let o = null;
+  for (const ad of addrs) { const m = ad.match(/t-([0-9a-f]{12})@/i); if (m) { o = await orderByTk(m[1]); if (o) break; } }
+  if (!o && from) {
+    const art = (await artists()).find((x) => cleanEmail(x.email) === from);
+    if (art) o = (await orders()).filter((x) => x.artist === art.id && x.status === "ordered").sort((a, b) => b.placed - a.placed)[0] || null;
+  }
+  const snippet = newPart(body).replace(/\s+/g, " ").trim().slice(0, 600);
+  if (!o) {
+    const known = addrs.some((ad) => /t-[0-9a-f]{12}@/i.test(ad)) || (from && (await artists()).some((x) => cleanEmail(x.email) === from));
+    if (!known) return json({ ok: true, ignored: true });
+    await forwardToTeam(`Email we couldn't match to an order: ${subject}`.slice(0, 120), [`From: ${from}`, `Subject: ${subject}`, snippet || "(no text)"]);
+    return json({ ok: true, matched: false });
+  }
+  const found = findTracking(newPart(body), subject);
+  if (o.status !== "ordered") {
+    if (!found || found.tracking !== o.tracking) await forwardToTeam(`Email about ${o.artistName}'s order`, [`From: ${from}`, `Subject: ${subject}`, `This order already has tracking (${o.carrier} ${o.tracking}).`, snippet || "(no text)"]);
+    return json({ ok: true, matched: true, already: true });
+  }
+  if (!found) {
+    await forwardToTeam(`${o.artistName} emailed about their order (no tracking number found)`, [`From: ${from}`, `Subject: ${subject}`, snippet || "(no text)", "Add the tracking from HQ if needed, or reply to them."]);
+    return json({ ok: true, matched: true, tracking: false });
+  }
+  const isLabelSite = !!(from && !(await artists()).some((x) => cleanEmail(x.email) === from));
+  await applyTracking(o, found.carrier, found.tracking, isLabelSite ? `by email from ${from.split("@")[1] || "label site"}` : "by email reply");
+  return json({ ok: true, matched: true, tracking: found.tracking });
 }
 
 /* ---------------- sessions ---------------- */
@@ -157,6 +297,7 @@ export default async (req) => {
   const url = new URL(req.url);
   const a = url.searchParams.get("a") || "";
   let b = {};
+  if (a === "inbound" && req.method === "POST") return handleInbound(req);
   if (req.method === "POST") {
     if (req.headers.get("x-mm") !== "1") return fail("Bad request", 400); // blocks cross-site form posts
     try { b = await req.json(); } catch { b = {}; }
@@ -186,6 +327,20 @@ export default async (req) => {
     if (!sent && env("DEV_SHOW_LINKS") === "1") return json({ ...ok, devLink: link });
     return json(ok);
   }
+  if (a === "track-get") {
+    const o = await orderByTk(url.searchParams.get("t"));
+    if (!o) return fail("This link isn't active anymore. Check your latest order email or log in to your portal.", 404);
+    return json({ artist: String(o.artistName || "").split(" ")[0], qty: o.qty || QTY, placed: o.placed, status: o.status, carrier: o.carrier || "", tracking: o.tracking || "", shipBy: o.placed + 14 * 864e5 });
+  }
+  if (a === "track-set" && req.method === "POST") {
+    const o = await orderByTk(b.t);
+    if (!o) return fail("This link isn't active anymore. Check your latest order email or log in to your portal.", 404);
+    if (o.status !== "ordered") return fail("This order already has a tracking number.");
+    const tracking = String(b.tracking || "").trim().slice(0, 80);
+    if (tracking.replace(/[\s-]/g, "").length < 6) return fail("Enter the full tracking number.");
+    await applyTracking(o, b.carrier, tracking, "by one-tap link");
+    return json({ ok: true, status: "transit", carrier: o.carrier, tracking: o.tracking });
+  }
   if (a === "verify" && req.method === "POST") {
     const key = `login/${h(b.token || "")}`;
     const l = await getJ(key);
@@ -214,7 +369,7 @@ export default async (req) => {
     const tracking = String(b.tracking || "").trim().slice(0, 80);
     const carrier = ["USPS", "UPS", "FedEx", "DHL", "Other"].includes(b.carrier) ? b.carrier : "Other";
     if (tracking.length < 6) return fail("Enter the full tracking number.");
-    Object.assign(o, { status: "transit", carrier, tracking, shipped: now() });
+    Object.assign(o, { status: "transit", carrier, tracking, shipped: now(), via: "in the portal" });
     await setJ(`order/${o.id}`, o);
     await addAlert(s.artist, "tracking", o);
     return json(await portalPayload(s));
@@ -262,8 +417,10 @@ export default async (req) => {
     const picks = (Array.isArray(b.works) ? b.works : []).map(Number).filter((n) => Number.isInteger(n) && n >= 0 && n < (art.works || []).length);
     const n = picks.length, base = n ? Math.floor(QTY / n) : 0, rem = n ? QTY - base * n : 0;
     const id = `o-${now().toString(36)}${randomBytes(3).toString("hex")}`;
-    const o = { id, artist: art.id, artistName: art.name, qty: QTY, price: art.price, deal: art.deal, lines: picks.map((w, i) => ({ work: w, qty: base + (i < rem ? 1 : 0) })), status: "ordered", placed: now(), by: s.email };
+    const tk = randomBytes(6).toString("hex");
+    const o = { id, artist: art.id, artistName: art.name, qty: QTY, price: art.price, deal: art.deal, lines: picks.map((w, i) => ({ work: w, qty: base + (i < rem ? 1 : 0) })), status: "ordered", placed: now(), by: s.email, tk };
     await setJ(`order/${id}`, o);
+    await setJ(`tk/${tk}`, { order: id });
     await addAlert(art, "order", o);
     return json(await hqPayload());
   }
@@ -279,6 +436,7 @@ export default async (req) => {
   if (a === "cancel") {
     const o = await getJ(`order/${safeId(b.orderId)}`); if (!o) return fail("Order not found.", 404);
     await del(`order/${o.id}`);
+    if (o.tk) await del(`tk/${o.tk}`);
     const t0 = (o.placed || 0) - 5000, t1 = (o.received || o.shipped || o.placed || 0) + 5000;
     for (const al of await listJ("alert/")) {
       if (al.order === o.id || (!al.order && al.artist === o.artist && al.t >= t0 && al.t <= t1)) await del(al._key);
