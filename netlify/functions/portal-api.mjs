@@ -94,8 +94,13 @@ async function addAlert(a, kind, order) {
       emailed = await sendMail(a.email, subj, [`Hi ${String(a.name).split(" ")[0]},`, body, ...how],
         { label: "Add tracking number", href: `${site()}/portal/?track=${order.tk}` },
         { replyTo: addr || undefined, footer: addr ? "Replies to this email go to this order. Questions? Write to info@mystrymart.com." : undefined,
-          extraHtml: `<p style="font-size:14px;color:#77727E;margin:0">You can also see all your orders in your <a href="${esc(site() + "/portal/")}" style="color:#BE3F6B">artist portal</a>.</p>`,
-          extraText: `Your artist portal: ${site()}/portal/` });
+          extraHtml: (addr ? `<div style="background:#FFF6D6;border:3px solid #141418;border-radius:12px;padding:14px 16px;margin:0 0 18px">
+              <div style="font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px">Buying your label on Pirate Ship (or any label site)?</div>
+              <div style="font-size:14px;margin-bottom:8px">Copy this into the <b>recipient's email</b> field. Your tracking number comes to us automatically.</div>
+              <div style="font-family:Menlo,Consolas,monospace;font-size:16px;font-weight:700;background:#fff;border:2px dashed #141418;border-radius:8px;padding:8px 10px;word-break:break-all">${esc(addr)}</div>
+            </div>` : "") +
+            `<p style="font-size:14px;color:#77727E;margin:0">You can also see all your orders and earnings in your <a href="${esc(site() + "/portal/")}" style="color:#BE3F6B">artist portal</a>.</p>`,
+          extraText: (addr ? `Pirate Ship / label sites, recipient's email: ${addr}\n\n` : "") + `Your artist portal: ${site()}/portal/` });
     } else {
       emailed = await sendMail(a.email, subj, [`Hi ${String(a.name).split(" ")[0]},`, body], { label: "Open your artist portal", href: site() + "/portal/" });
     }
@@ -290,9 +295,10 @@ async function hqPayload() {
 }
 async function portalPayload(s) {
   const a = s.artist;
-  const os = (await orders()).filter((o) => o.artist === a.id).map(({ _key, ...r }) => r);
+  const os = (await orders()).filter((o) => o.artist === a.id).map(({ _key, by, receivedBy, ...r }) => ({ ...r, inbox: r.status === "ordered" ? inboxFor(r) : "" }));
   const als = (await listJ("alert/")).filter((x) => x.artist === a.id && !x.forTeam).sort((x, y) => y.t - x.t).slice(0, 50).map(({ _key, email, ...r }) => r);
-  return { artist: { ...publicArtist(a), email: a.email }, orders: os, alerts: als, qty: QTY };
+  const pays = (await listJ("payout/")).filter((p) => p.artist === a.id).map(({ _key, ...r }) => r);
+  return { artist: { ...publicArtist(a), email: a.email }, orders: os, alerts: als, payouts: pays, qty: QTY };
 }
 
 /* ---------------- handler ---------------- */
