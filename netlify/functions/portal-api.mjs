@@ -1,0 +1,308 @@
+// Mystry Mart artist portal + team HQ backend.
+// One function, called as /.netlify/functions/portal-api?a=<action>
+// Data lives in Netlify Blobs (store "portal"). Emails go out through Resend.
+//
+// Environment variables (Netlify > Site configuration > Environment variables):
+//   RESEND_API_KEY   API key from resend.com (required to send any email, including login links)
+//   ADMIN_EMAILS     comma-separated team emails allowed into /hq, e.g. "info@mystrymart.com,you@gmail.com"
+//   MAIL_FROM        optional, default "Mystry Mart <orders@mystrymart.com>" (domain must be verified in Resend)
+//   TEAM_EMAIL       optional, where "tracking received" alerts go, default info@mystrymart.com
+//   DEV_SHOW_LINKS   optional, set to 1 ONLY while testing without Resend: login links are shown on screen
+import { getStore } from "@netlify/blobs";
+import { createHash, randomBytes } from "node:crypto";
+
+const QTY = 50;
+const LOGIN_MIN = 15;
+const SESSION_DAYS = 30;
+const COOKIE = "mm_portal";
+
+const env = (k) => {
+  try { const v = globalThis.Netlify?.env?.get?.(k); if (v != null) return v; } catch {}
+  return process.env[k] || "";
+};
+const store = () => getStore({ name: "portal", consistency: "strong" });
+const views = () => getStore({ name: "site-views", consistency: "strong" });
+const h = (s) => createHash("sha256").update(String(s)).digest("hex");
+const tok = () => randomBytes(32).toString("base64url");
+const now = () => Date.now();
+const json = (data, status = 200, headers = {}) =>
+  new Response(JSON.stringify(data), { status, headers: { "Content-Type": "application/json", "Cache-Control": "no-store", ...headers } });
+const fail = (msg, status = 400) => json({ error: msg }, status);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const cleanEmail = (e) => String(e || "").trim().toLowerCase().slice(0, 200);
+const site = () => (env("SITE_URL") || env("URL") || "https://mystrymart.com").replace(/\/+$/, "");
+const admins = () => env("ADMIN_EMAILS").split(",").map(cleanEmail).filter(Boolean);
+const safeId = (s) => String(s || "").toLowerCase().replace(/[^a-z0-9_-]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60);
+
+async function getJ(key) { return (await store().get(key, { type: "json" })) || null; }
+async function setJ(key, v) { await store().setJSON(key, v); }
+async function del(key) { await store().delete(key); }
+async function listJ(prefix) {
+  const s = store();
+  const { blobs } = await s.list({ prefix });
+  const out = await Promise.all(blobs.map((b) => s.get(b.key, { type: "json" }).then((v) => (v ? { ...v, _key: b.key } : null))));
+  return out.filter(Boolean);
+}
+const artists = () => listJ("artist/");
+const orders = () => listJ("order/");
+
+/* ---------------- email ---------------- */
+async function sendMail(to, subject, lines, button) {
+  const key = env("RESEND_API_KEY");
+  if (!key || !to) return false;
+  const html = `<div style="font-family:Arial,Helvetica,sans-serif;max-width:520px;margin:0 auto;padding:24px;color:#141418">
+    <div style="font-weight:800;font-size:20px;color:#BE3F6B;margin-bottom:16px">MYSTRY MART</div>
+    ${lines.map((l) => `<p style="font-size:16px;line-height:1.5;margin:0 0 14px">${esc(l)}</p>`).join("")}
+    ${button ? `<p style="margin:22px 0"><a href="${esc(button.href)}" style="background:#D9F53B;color:#141418;border:3px solid #141418;border-radius:10px;padding:12px 20px;font-weight:800;text-decoration:none;display:inline-block">${esc(button.label)}</a></p>` : ""}
+    <p style="font-size:12px;color:#77727E;margin-top:28px">Mystry Mart · mystrymart.com · Questions? Reply to this email.</p></div>`;
+  const text = lines.join("\n\n") + (button ? `\n\n${button.label}: ${button.href}` : "");
+  try {
+    const r = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ from: env("MAIL_FROM") || "Mystry Mart <orders@mystrymart.com>", to: [to], subject, html, text, reply_to: env("TEAM_EMAIL") || "info@mystrymart.com" }),
+    });
+    return r.ok;
+  } catch { return false; }
+}
+
+async function addAlert(a, kind, order) {
+  const subj = kind === "order" ? `New Mystry Mart order: ${QTY} pieces` : kind === "received" ? "Your pieces arrived" : "Tracking number received";
+  const body =
+    kind === "order"
+      ? `We placed an order for ${QTY} pieces${order.lines?.length ? ` (${order.lines.map((l) => l.qty).join(" + ")})` : ", your choice of pieces"}. Please ship within 14 days and add your tracking number in your portal.`
+      : kind === "received"
+      ? `We received your ${QTY} pieces. Thank you! They will go into the machine soon.`
+      : `${a.name} sent tracking for their ${QTY}-piece order: ${order.carrier} ${order.tracking}.`;
+  let emailed = false;
+  if (kind === "tracking") {
+    emailed = await sendMail(env("TEAM_EMAIL") || "info@mystrymart.com", `Tracking from ${a.name}`, [body], { label: "Open HQ", href: site() + "/hq/" });
+  } else {
+    emailed = await sendMail(a.email, subj, [`Hi ${String(a.name).split(" ")[0]},`, body], { label: "Open your artist portal", href: site() + "/portal/" });
+  }
+  const id = `${now().toString(36)}${randomBytes(3).toString("hex")}`;
+  const al = { id, artist: a.id, artistName: a.name, email: kind === "tracking" ? "team" : a.email, kind, subj, body, t: now(), emailed, forTeam: kind === "tracking" };
+  await setJ(`alert/${id}`, al);
+  return al;
+}
+
+/* ---------------- sessions ---------------- */
+function readCookie(req) {
+  const m = (req.headers.get("cookie") || "").match(new RegExp(`(?:^|;\\s*)${COOKIE}=([^;]+)`));
+  return m ? m[1] : "";
+}
+async function session(req) {
+  const sid = readCookie(req);
+  if (!sid) return null;
+  const s = await getJ(`sess/${h(sid)}`);
+  if (!s || s.exp < now()) return null;
+  if (s.role === "team" && !admins().includes(s.email)) return null;
+  if (s.role === "artist") {
+    const a = await getJ(`artist/${s.artistId}`);
+    if (!a || a.active === false || cleanEmail(a.email) !== s.email) return null;
+    s.artist = a;
+  }
+  return s;
+}
+const cookie = (v, maxAge) => `${COOKIE}=${v}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${maxAge}`;
+
+async function rateOk(email) {
+  const key = `rl/${h(email)}`;
+  const r = (await getJ(key)) || { t: [] };
+  const recent = r.t.filter((x) => x > now() - 3600e3);
+  if (recent.length >= 5) return false;
+  recent.push(now());
+  await setJ(key, { t: recent });
+  return true;
+}
+
+/* ---------------- clicks from the site view counter ---------------- */
+async function clickCounts() {
+  const cached = await getJ("cache/clicks");
+  if (cached && cached.t > now() - 10 * 60e3) return cached.c;
+  const c = {};
+  try {
+    const s = views();
+    for (let i = 0; i < 30; i++) {
+      const d = new Date(now() - i * 864e5).toISOString().slice(0, 10);
+      const { blobs } = await s.list({ prefix: `v/${d}/` });
+      for (const { key } of blobs) {
+        const page = decodeURIComponent(key.slice(13).split("~")[0] || "");
+        if (page.startsWith("artist: ")) { const sl = page.slice(8).trim().toLowerCase(); if (sl) c[sl] = (c[sl] || 0) + 1; }
+      }
+    }
+  } catch {}
+  await setJ("cache/clicks", { t: now(), c });
+  return c;
+}
+
+/* ---------------- payloads ---------------- */
+const publicArtist = (a) => ({ id: a.id, name: a.name, studio: a.studio || "", handle: a.handle || "", price: a.price, deal: a.deal, photo: a.photo || "", works: a.works || [] });
+
+async function hqPayload() {
+  const [as, os, als, clicks, pays] = await Promise.all([artists(), orders(), listJ("alert/"), clickCounts(), listJ("payout/")]);
+  for (const a of as) { a.clicks = clicks[a.id] || 0; (a.aliases || []).forEach((s) => (a.clicks += clicks[s] || 0)); delete a._key; }
+  os.forEach((o) => delete o._key);
+  return { artists: as, orders: os, alerts: als.sort((x, y) => y.t - x.t).slice(0, 300).map(({ _key, ...r }) => r), payouts: pays.map(({ _key, ...r }) => r), qty: QTY };
+}
+async function portalPayload(s) {
+  const a = s.artist;
+  const os = (await orders()).filter((o) => o.artist === a.id).map(({ _key, ...r }) => r);
+  const als = (await listJ("alert/")).filter((x) => x.artist === a.id && !x.forTeam).sort((x, y) => y.t - x.t).slice(0, 50).map(({ _key, email, ...r }) => r);
+  return { artist: { ...publicArtist(a), email: a.email }, orders: os, alerts: als, qty: QTY };
+}
+
+/* ---------------- handler ---------------- */
+export default async (req) => {
+  const url = new URL(req.url);
+  const a = url.searchParams.get("a") || "";
+  let b = {};
+  if (req.method === "POST") {
+    if (req.headers.get("x-mm") !== "1") return fail("Bad request", 400); // blocks cross-site form posts
+    try { b = await req.json(); } catch { b = {}; }
+  }
+
+  // ---- login ----
+  if (a === "login" && req.method === "POST") {
+    const email = cleanEmail(b.email);
+    const role = b.as === "team" ? "team" : "artist";
+    const ok = { ok: true, message: "If that email is on our list, a login link is on its way. It works for 15 minutes." };
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return fail("Enter a valid email address.");
+    if (!(await rateOk(email))) return fail("Too many login emails. Try again in an hour.", 429);
+    let artistId = null;
+    if (role === "team") { if (!admins().includes(email)) return json(ok); }
+    else {
+      const match = (await artists()).find((x) => x.active !== false && cleanEmail(x.email) === email);
+      if (!match) return json(ok);
+      artistId = match.id;
+    }
+    const t = tok();
+    await setJ(`login/${h(t)}`, { email, role, artistId, exp: now() + LOGIN_MIN * 60e3 });
+    const link = `${site()}/${role === "team" ? "hq" : "portal"}/?login=${t}`;
+    const sent = await sendMail(email, "Your Mystry Mart login link", [
+      role === "team" ? "Here's your link to Mystry Mart HQ." : "Here's your link to the Mystry Mart artist portal.",
+      `It works once and expires in ${LOGIN_MIN} minutes. If you didn't ask for it, you can ignore this email.`,
+    ], { label: "Log in", href: link });
+    if (!sent && env("DEV_SHOW_LINKS") === "1") return json({ ...ok, devLink: link });
+    return json(ok);
+  }
+  if (a === "verify" && req.method === "POST") {
+    const key = `login/${h(b.token || "")}`;
+    const l = await getJ(key);
+    if (!l || l.exp < now()) return fail("This login link has expired or was already used. Request a new one.", 401);
+    await del(key);
+    const sid = tok();
+    await setJ(`sess/${h(sid)}`, { email: l.email, role: l.role, artistId: l.artistId, exp: now() + SESSION_DAYS * 864e5 });
+    return json({ ok: true, role: l.role }, 200, { "Set-Cookie": cookie(sid, SESSION_DAYS * 86400) });
+  }
+  if (a === "logout" && req.method === "POST") {
+    const sid = readCookie(req);
+    if (sid) await del(`sess/${h(sid)}`);
+    return json({ ok: true }, 200, { "Set-Cookie": cookie("", 0) });
+  }
+
+  const s = await session(req);
+  if (a === "me") return s ? json({ email: s.email, role: s.role, artistId: s.artistId || null }) : fail("Not logged in", 401);
+  if (!s) return fail("Not logged in", 401);
+
+  // ---- artist ----
+  if (a === "portal" && s.role === "artist") return json(await portalPayload(s));
+  if (a === "tracking" && s.role === "artist" && req.method === "POST") {
+    const o = await getJ(`order/${safeId(b.orderId)}`);
+    if (!o || o.artist !== s.artist.id) return fail("Order not found.", 404);
+    if (o.status !== "ordered") return fail("This order already has a tracking number.");
+    const tracking = String(b.tracking || "").trim().slice(0, 80);
+    const carrier = ["USPS", "UPS", "FedEx", "DHL", "Other"].includes(b.carrier) ? b.carrier : "Other";
+    if (tracking.length < 6) return fail("Enter the full tracking number.");
+    Object.assign(o, { status: "transit", carrier, tracking, shipped: now() });
+    await setJ(`order/${o.id}`, o);
+    await addAlert(s.artist, "tracking", o);
+    return json(await portalPayload(s));
+  }
+
+  // ---- team ----
+  if (s.role !== "team") return fail("Not allowed", 403);
+  if (a === "hq") return json(await hqPayload());
+  if (req.method !== "POST") return fail("Not allowed", 405);
+
+  if (a === "artist-save") {
+    const f = b.artist || {};
+    const name = String(f.name || "").trim().slice(0, 80);
+    const email = cleanEmail(f.email);
+    const price = Math.round(parseFloat(f.price) * 100) / 100;
+    if (!name || !email || !(price >= 0)) return fail("Fill in the name, email and price.");
+    const id = safeId(f.id) || safeId(f.slug) || `${safeId(name) || "artist"}-${now().toString(36)}`;
+    const old = (await getJ(`artist/${id}`)) || { active: true, added: now() };
+    const works = (Array.isArray(f.works) ? f.works : []).filter((w) => typeof w === "string" && w.startsWith("data:image/")).slice(0, 4);
+    const photo = typeof f.photo === "string" && (f.photo === "" || f.photo.startsWith("data:image/")) ? f.photo : old.photo || "";
+    let handle = String(f.handle || "").trim().slice(0, 60);
+    if (handle && !handle.startsWith("@")) handle = "@" + handle;
+    const rec = { ...old, id, name, studio: String(f.studio || "").trim().slice(0, 80), email, handle, price, deal: f.deal === "Wholesale" ? "Wholesale" : "Consignment", photo, works, updated: now() };
+    await setJ(`artist/${id}`, rec);
+    return json(await hqPayload());
+  }
+  if (a === "artist-price") {
+    const r = await getJ(`artist/${safeId(b.id)}`); if (!r) return fail("Artist not found.", 404);
+    const price = Math.round(parseFloat(b.price) * 100) / 100; if (!(price >= 0)) return fail("Enter a price like 7.50.");
+    r.price = price; r.updated = now(); await setJ(`artist/${r.id}`, r); return json(await hqPayload());
+  }
+  if (a === "artist-deal") {
+    const r = await getJ(`artist/${safeId(b.id)}`); if (!r) return fail("Artist not found.", 404);
+    r.deal = b.deal === "Wholesale" ? "Wholesale" : "Consignment"; await setJ(`artist/${r.id}`, r); return json(await hqPayload());
+  }
+  if (a === "artist-active") {
+    const r = await getJ(`artist/${safeId(b.id)}`); if (!r) return fail("Artist not found.", 404);
+    r.active = !!b.active; await setJ(`artist/${r.id}`, r); return json(await hqPayload());
+  }
+  if (a === "order") {
+    const art = await getJ(`artist/${safeId(b.artistId)}`);
+    if (!art || art.active === false) return fail("Artist not found.", 404);
+    const open = (await orders()).find((o) => o.artist === art.id && o.status !== "received");
+    if (open) return fail(`${art.name} already has an open order.`);
+    const picks = (Array.isArray(b.works) ? b.works : []).map(Number).filter((n) => Number.isInteger(n) && n >= 0 && n < (art.works || []).length);
+    const n = picks.length, base = n ? Math.floor(QTY / n) : 0, rem = n ? QTY - base * n : 0;
+    const id = `o-${now().toString(36)}${randomBytes(3).toString("hex")}`;
+    const o = { id, artist: art.id, artistName: art.name, qty: QTY, price: art.price, deal: art.deal, lines: picks.map((w, i) => ({ work: w, qty: base + (i < rem ? 1 : 0) })), status: "ordered", placed: now(), by: s.email };
+    await setJ(`order/${id}`, o);
+    await addAlert(art, "order", o);
+    return json(await hqPayload());
+  }
+  if (a === "received") {
+    const o = await getJ(`order/${safeId(b.orderId)}`); if (!o) return fail("Order not found.", 404);
+    if (o.status === "received") return json(await hqPayload());
+    Object.assign(o, { status: "received", received: now(), receivedBy: s.email });
+    await setJ(`order/${o.id}`, o);
+    const art = (await getJ(`artist/${o.artist}`)) || { id: o.artist, name: o.artistName, email: "" };
+    await addAlert(art, "received", o);
+    return json(await hqPayload());
+  }
+  if (a === "order-paid") {
+    const o = await getJ(`order/${safeId(b.orderId)}`); if (!o) return fail("Order not found.", 404);
+    o.paid = !!b.paid; o.paidAt = b.paid ? now() : null; await setJ(`order/${o.id}`, o); return json(await hqPayload());
+  }
+  if (a === "payout") {
+    const month = /^\d{4}-\d{2}$/.test(b.month || "") ? b.month : null;
+    const id = safeId(b.artistId);
+    if (!month || !id) return fail("Pick a month and artist.");
+    const key = `payout/${month}/${id}`;
+    const p = (await getJ(key)) || { month, artist: id };
+    if (b.sold != null) p.sold = Math.max(0, Math.min(10000, parseInt(b.sold, 10) || 0));
+    if (b.paid != null) { p.paid = !!b.paid; p.paidAt = b.paid ? now() : null; }
+    await setJ(key, p);
+    return json(await hqPayload());
+  }
+  if (a === "import") {
+    const list = Array.isArray(b.artists) ? b.artists : [];
+    const existing = new Set((await artists()).map((x) => x.id));
+    let added = 0;
+    for (const f of list.slice(0, 500)) {
+      const id = safeId(f.id); if (!id || existing.has(id) || !f.name || !f.email) continue;
+      await setJ(`artist/${id}`, { id, name: String(f.name).slice(0, 80), studio: String(f.studio || "").slice(0, 80), email: cleanEmail(f.email), handle: String(f.handle || "").slice(0, 60),
+        price: Number(f.price) || 0, deal: f.deal === "Wholesale" ? "Wholesale" : "Consignment", photo: typeof f.photo === "string" ? f.photo : "",
+        works: Array.isArray(f.works) ? f.works.filter((w) => typeof w === "string").slice(0, 4) : [], active: f.active !== false, added: now() });
+      added++;
+    }
+    return json({ added, ...(await hqPayload()) });
+  }
+  return fail("Unknown action", 404);
+};
