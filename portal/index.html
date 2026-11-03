@@ -226,7 +226,7 @@ $('outBtn').onclick=async()=>{try{await api('logout',{});}catch(_){}location.rep
 (async()=>{
   const t=new URLSearchParams(location.search).get('login');
   if(t){history.replaceState(null,'',location.pathname);try{await api('verify',{token:t});}catch(e){showLogin(e.message);return;}}
-  try{D=await api('portal');}catch(e){showLogin(e.status===401?'':e.message);return;}
+  try{D=await api('portal');}catch(e){showLogin(e.status===401?'':e.status===403?'You\u2019re logged in to HQ. Enter an artist email to open their portal.':e.message);return;}
   $('login').hidden=true;$('app').hidden=false;$('outBtn').hidden=false;render();
   setInterval(async()=>{const ae=document.activeElement;if(document.visibilityState!=='visible'||(ae&&ae.closest&&ae.closest('#tf')))return;try{D=await api('portal');render();}catch(_){}},60000);
 })();
