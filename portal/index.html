@@ -151,6 +151,19 @@ input,select{width:100%;font:inherit;font-size:16px;padding:9px 12px;border-radi
 
 .home{color:var(--soft);font-size:14px;font-weight:700;text-decoration:none}
 .hist{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.inbox{background:var(--panel2);border:2px dashed var(--warm);border-radius:12px;padding:12px;margin:14px 0}
+.inbox p{margin:0 0 8px;font-size:13px;color:var(--soft)}
+.inbox div{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.inbox code{font-family:var(--f-lcd);font-size:19px;color:var(--lcdtx);background:var(--lcd);border-radius:7px;padding:4px 8px;word-break:break-all;flex:1;min-width:0}
+.mtabs{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;margin-bottom:12px;scrollbar-width:thin}
+.mtabs button{flex:none;border:2px solid var(--line);background:var(--panel2);color:var(--soft);border-radius:999px;padding:6px 12px;font-weight:800;font-size:13px;cursor:pointer}
+.mtabs button[aria-selected="true"]{background:var(--lime);color:var(--ink);border-color:#000}
+.etiles{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.etiles div{background:var(--panel2);border-radius:10px;padding:10px}
+.etiles small{display:block;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--mute)}
+.etiles b{font-family:var(--f-lcd);font-size:26px;font-weight:400;color:var(--lcdtx)}
+.enote{font-size:13px;color:var(--mute);margin:10px 0 0}
+@media (max-width:600px){.etiles{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .hist li{display:flex;flex-wrap:wrap;justify-content:space-between;gap:6px 12px;background:var(--panel2);border-radius:10px;padding:10px 12px;font-size:14px}
 </style>
 </head>
@@ -199,6 +212,7 @@ input,select{width:100%;font:inherit;font-size:16px;padding:9px 12px;border-radi
       <div class="card"><h3>Current order</h3><div id="cur"></div></div>
       <div class="card"><h3>Alerts</h3><ul class="note" id="alerts"></ul></div>
     </div>
+    <div class="card" style="margin-top:18px"><h3>Your earnings</h3><div class="mtabs" id="mtabs" role="tablist" aria-label="Month"></div><div id="earn"></div></div>
     <div class="card" style="margin-top:18px"><h3>Past orders</h3><ul class="hist" id="hist"></ul></div>
   </section>
 </div>
@@ -223,16 +237,49 @@ function render(){
     cur=`<div class="prog"><span class="${step>=1?'on':''}">Ordered</span><span class="${step>=2?'on':''}">Shipped</span><span class="${step>=3?'on':''}">Received</span></div>
     <p style="margin:0;color:var(--soft)">Ordered ${fmtD(o.placed)} · ${o.qty||qty} pieces${o.status==='ordered'?' · please ship by '+fmtD(o.placed+14*864e5):''}</p>
     ${o.lines&&o.lines.length?`<div class="lines">${o.lines.map(l=>`<div>${a.works[l.work]?`<img src="${esc(a.works[l.work])}" alt="">`:''}<span><b>×${l.qty}</b></span></div>`).join('')}</div>`:'<p class="meta" style="margin:8px 0 14px">Your choice of pieces.</p>'}`;
+    if(o.status==='ordered'&&o.inbox)cur+=`<div class="inbox"><p><b>Buying your label on Pirate Ship (or any label site)?</b> Put this in the recipient's email field and your tracking comes to us automatically. You can also just reply to your order email with the number.</p><div><code id="ibx">${esc(o.inbox)}</code><button class="btn sm" type="button" id="cpy">Copy</button></div></div>`;
     if(o.status==='ordered')cur+=`<form id="tf"><div class="grid2"><div><label for="car">Carrier</label><select id="car"><option>USPS</option><option>UPS</option><option>FedEx</option><option>DHL</option><option>Other</option></select></div><div><label for="trn">Tracking number</label><input id="trn" required minlength="6" autocomplete="off" placeholder="Paste it from your shipping receipt"></div></div><button class="btn" type="submit" id="tbtn">Send tracking number</button></form>`;
     else cur+=`<div class="trk">${esc(o.carrier)} ${esc(o.tracking)}</div><p class="meta" style="margin:8px 0 0">Sent ${fmtD(o.shipped)}. We’ll email you when it arrives.</p>`;}
   $('cur').innerHTML=cur;
   $('alerts').innerHTML=D.alerts.length?D.alerts.map(m=>`<li><span class="dot" style="background:${m.kind==='received'?'var(--hot)':'var(--warm)'};margin-top:5px"></span><div><b>${esc(m.subj)}</b><time>${fmtT(m.t)}</time></div></li>`).join(''):'<li><span></span><div>No alerts yet.</div></li>';
   const past=os.filter(x=>x.status==='received');
   $('hist').innerHTML=past.length?past.map(x=>`<li><span>Ordered ${fmtD(x.placed)} · ${x.qty||qty} pieces</span><span style="color:var(--hot);font-weight:700">Received ${fmtD(x.received)}</span></li>`).join(''):'<li>None yet.</li>';
+  const cp=$('cpy');if(cp)cp.onclick=async()=>{try{await navigator.clipboard.writeText($('ibx').textContent);toast('Copied!');}catch(_){const r=document.createRange();r.selectNodeContents($('ibx'));const s=getSelection();s.removeAllRanges();s.addRange(r);toast('Selected. Press copy.');}};
+  renderEarn();
   const tf=$('tf');if(tf)tf.onsubmit=async e=>{e.preventDefault();$('tbtn').disabled=true;
     try{D=await api('tracking',{orderId:o.id,carrier:$('car').value,tracking:$('trn').value});render();toast('Thanks! Your tracking number was sent to Mystry Mart.');}
     catch(err){toast(err.message,true);$('tbtn').disabled=false;}};
 }
+let selM=null;
+const mKey=t=>{const d=new Date(t);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');};
+const mName=k=>{const[y,m]=k.split('-');return new Date(+y,+m-1,1).toLocaleDateString('en-US',{month:'short',year:'numeric'});};
+function monthData(k){
+  const a=D.artist,os=D.orders,pays=D.payouts||[];
+  const req=os.filter(o=>mKey(o.placed)===k).reduce((s,o)=>s+(o.qty||D.qty||50),0);
+  const rec=os.filter(o=>o.status==='received'&&mKey(o.received)===k);
+  const recQ=rec.reduce((s,o)=>s+(o.qty||D.qty||50),0);
+  let earned=0,paid=true,any=false,sold=null;
+  rec.filter(o=>o.deal==='Wholesale').forEach(o=>{earned+=(o.qty||50)*(o.price||0);any=true;if(!o.paid)paid=false;});
+  const p=pays.find(x=>x.month===k);
+  if(p&&p.sold){sold=p.sold;earned+=p.sold*a.price;any=true;if(!p.paid)paid=false;}
+  return{req,recQ,sold,earned,status:!any?'—':paid?'Paid':'Not paid yet'};
+}
+function renderEarn(){
+  const ks=new Set([mKey(Date.now())]);
+  D.orders.forEach(o=>{ks.add(mKey(o.placed));if(o.received)ks.add(mKey(o.received));});
+  (D.payouts||[]).forEach(p=>{if(p.month&&(p.sold||p.paid))ks.add(p.month);});
+  const list=[...ks].sort().reverse().slice(0,24);
+  if(!selM||!list.includes(selM))selM=list[0];
+  $('mtabs').innerHTML=list.map(k=>`<button type="button" role="tab" aria-selected="${k===selM}" data-m="${k}">${mName(k)}</button>`).join('');
+  const d=monthData(selM),cons=D.artist.deal!=='Wholesale';
+  $('earn').innerHTML=`<div class="etiles">
+    <div><small>Pieces requested</small><b>${d.req}</b></div>
+    <div><small>Pieces received</small><b>${d.recQ}</b></div>
+    <div><small>${cons?'Pieces sold':'Earned'}</small><b>${cons?(d.sold??0):money(d.earned)}</b></div>
+    <div><small>${cons?'Earned':'Payment'}</small><b>${cons?money(d.earned):d.status}</b></div></div>
+    ${cons?`<p class="enote">Payment: <b>${d.status}</b>. You’re paid ${money(D.artist.price)} for each piece sold. Sales are added after each month closes.</p>`:`<p class="enote">You’re paid ${money(D.artist.price)} per piece for each box we receive.</p>`}`;
+}
+document.addEventListener('click',e=>{const b=e.target.closest('#mtabs button');if(b){selM=b.dataset.m;renderEarn();}});
 function showLogin(msg){$('login').hidden=false;$('app').hidden=true;$('outBtn').hidden=true;if(msg){$('lmsg').textContent=msg;}}
 $('lf').addEventListener('submit',async e=>{e.preventDefault();$('lbtn').disabled=true;$('lmsg').textContent='Sending…';
   try{const r=await api('login',{email:$('lem').value,as:'artist'});$('lmsg').innerHTML=esc(r.message)+(r.devLink?`<br><a href="${esc(r.devLink)}">Test login link</a>`:'');}
