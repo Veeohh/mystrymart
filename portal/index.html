@@ -164,6 +164,7 @@ input,select{width:100%;font:inherit;font-size:16px;padding:9px 12px;border-radi
 .etiles b{font-family:var(--f-lcd);font-size:26px;font-weight:400;color:var(--lcdtx)}
 .enote{font-size:13px;color:var(--mute);margin:10px 0 0}
 @media (max-width:600px){.etiles{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.inv .invrow{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}.inv b{font-family:var(--f-lcd);font-size:44px;font-weight:400;color:var(--lcdtx);line-height:1}.inv span{color:var(--soft);font-size:14px}
 .hist li{display:flex;flex-wrap:wrap;justify-content:space-between;gap:6px 12px;background:var(--panel2);border-radius:10px;padding:10px 12px;font-size:14px}
 </style>
 </head>
@@ -212,6 +213,7 @@ input,select{width:100%;font:inherit;font-size:16px;padding:9px 12px;border-radi
       <div class="card"><h3>Current order</h3><div id="cur"></div></div>
       <div class="card"><h3>Alerts</h3><ul class="note" id="alerts"></ul></div>
     </div>
+    <div class="card inv" id="invCard" style="margin-top:18px" hidden><h3>Inventory with us</h3><div class="invrow"><b id="invN">0</b><span id="invSub"></span></div></div>
     <div class="card" style="margin-top:18px"><h3>Your earnings</h3><div class="mtabs" id="mtabs" role="tablist" aria-label="Month"></div><div id="earn"></div></div>
     <div class="card" style="margin-top:18px"><h3>Past orders</h3><ul class="hist" id="hist"></ul></div>
   </section>
@@ -243,9 +245,9 @@ function render(){
   $('cur').innerHTML=cur;
   $('alerts').innerHTML=D.alerts.length?D.alerts.map(m=>`<li><span class="dot" style="background:${m.kind==='received'?'var(--hot)':'var(--warm)'};margin-top:5px"></span><div><b>${esc(m.subj)}</b><time>${fmtT(m.t)}</time></div></li>`).join(''):'<li><span></span><div>No alerts yet.</div></li>';
   const past=os.filter(x=>x.status==='received');
-  $('hist').innerHTML=past.length?past.map(x=>`<li><span>Ordered ${fmtD(x.placed)} · ${x.qty||qty} pieces</span><span style="color:var(--hot);font-weight:700">Received ${fmtD(x.received)}</span></li>`).join(''):'<li>None yet.</li>';
+  $('hist').innerHTML=past.length?past.map(x=>`<li><span>${x.logged?'Delivered':'Ordered '+fmtD(x.placed)+' ·'} ${x.qty||qty} pieces</span><span style="color:var(--hot);font-weight:700">Received ${fmtD(x.received)}</span></li>`).join(''):'<li>None yet.</li>';
   const cp=$('cpy');if(cp)cp.onclick=async()=>{try{await navigator.clipboard.writeText($('ibx').textContent);toast('Copied!');}catch(_){const r=document.createRange();r.selectNodeContents($('ibx'));const s=getSelection();s.removeAllRanges();s.addRange(r);toast('Selected. Press copy.');}};
-  renderEarn();
+  renderEarn();renderInv();
   const tf=$('tf');if(tf)tf.onsubmit=async e=>{e.preventDefault();$('tbtn').disabled=true;
     try{D=await api('tracking',{orderId:o.id,carrier:$('car').value,tracking:$('trn').value});render();toast('Thanks! Your tracking number was sent to Mystry Mart.');}
     catch(err){toast(err.message,true);$('tbtn').disabled=false;}};
@@ -255,7 +257,7 @@ const mKey=t=>{const d=new Date(t);return d.getFullYear()+'-'+String(d.getMonth(
 const mName=k=>{const[y,m]=k.split('-');return new Date(+y,+m-1,1).toLocaleDateString('en-US',{month:'short',year:'numeric'});};
 function monthData(k){
   const a=D.artist,os=D.orders,pays=D.payouts||[];
-  const req=os.filter(o=>mKey(o.placed)===k).reduce((s,o)=>s+(o.qty||D.qty||50),0);
+  const req=os.filter(o=>!o.logged&&mKey(o.placed)===k).reduce((s,o)=>s+(o.qty||D.qty||50),0);
   const rec=os.filter(o=>o.status==='received'&&mKey(o.received)===k);
   const recQ=rec.reduce((s,o)=>s+(o.qty||D.qty||50),0);
   let earned=0,paid=true,any=false,sold=null;
@@ -263,6 +265,12 @@ function monthData(k){
   const p=pays.find(x=>x.month===k);
   if(p&&p.sold){sold=p.sold;earned+=p.sold*a.price;any=true;if(!p.paid)paid=false;}
   return{req,recQ,sold,earned,status:!any?'—':paid?'Paid':'Not paid yet'};
+}
+function renderInv(){
+  const rec=D.orders.filter(o=>o.status==='received'),got=rec.reduce((s,o)=>s+(o.qty||D.qty||50),0),sold=(D.payouts||[]).reduce((s,p)=>s+(p.sold||0),0),n=Math.max(0,got-sold);
+  $('invCard').hidden=!got;if(!got)return;$('invN').textContent=n;
+  const last=rec.sort((a,b)=>b.received-a.received)[0];
+  $('invSub').textContent=(n===1?'piece':'pieces')+' with Mystry Mart right now · last delivery '+new Date(last.received).toLocaleDateString('en-US',{month:'long',year:'numeric'})+(sold?` · ${sold} sold so far`:'');
 }
 function renderEarn(){
   const ks=new Set([mKey(Date.now())]);
