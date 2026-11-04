@@ -519,6 +519,17 @@ export default async (req) => {
     }
     return json({ emailed, ...(await hqPayload()) });
   }
+  if (a === "delivery") {
+    const art = await getJ(`artist/${safeId(b.artistId)}`); if (!art) return fail("Artist not found.", 404);
+    const qty = Math.round(Number(b.qty)); if (!(qty >= 1 && qty <= 1000)) return fail("Enter how many pieces you have (1 to 1000).");
+    const m = String(b.date || "").match(/^(\d{4})-(\d{2})-(\d{2})$/); if (!m) return fail("Pick the date the pieces arrived.");
+    const t = Date.UTC(+m[1], +m[2] - 1, +m[3], 17); if (t > now() + 864e5) return fail("That date is in the future.");
+    const id = `${now().toString(36)}${randomBytes(3).toString("hex")}`;
+    const o = { id, artist: art.id, artistName: art.name, qty, price: art.price, deal: art.deal, lines: [], status: "received", placed: t, shipped: t, received: t, by: s.email, receivedBy: s.email, logged: true, via: "logged by Mystry Mart" };
+    if (art.deal === "Wholesale" && b.paid) { o.paid = true; o.paidAt = now(); }
+    await setJ(`order/${id}`, o);
+    return json(await hqPayload());
+  }
   if (a === "order-paid") {
     const o = await getJ(`order/${safeId(b.orderId)}`); if (!o) return fail("Order not found.", 404);
     o.paid = !!b.paid; o.paidAt = b.paid ? now() : null; await setJ(`order/${o.id}`, o); return json(await hqPayload());
