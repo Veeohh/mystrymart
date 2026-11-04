@@ -301,6 +301,63 @@ async function portalPayload(s) {
   return { artist: { ...publicArtist(a), email: a.email }, orders: os, alerts: als, payouts: pays, qty: QTY };
 }
 
+/* ---------------- artist applications (emailed to the team) ---------------- */
+const APP_KINDS = ["Prints (wholesale)", "Originals on paper (consignment)", "Originals on canvas (consignment)", "Ceramics (consignment)", "Something else"];
+const APP_SIZES = ["4x6 in", "5x7 in", "Other"];
+const APP_Q = [["who", "Who are you?"], ["what", "What do you make, and what is it about?"], ["why", "Why do you make art?"], ["inspo", "Where do you find inspiration?"], ["process", "What's your process or favorite material?"], ["fun", "A fun fact about you"]];
+async function sendRaw(payload) {
+  const key = env("RESEND_API_KEY");
+  if (!key) return false;
+  try {
+    const r = await fetch("https://api.resend.com/emails", { method: "POST", headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ from: env("MAIL_FROM") || "Mystry Mart <orders@mystrymart.com>", ...payload }) });
+    return r.ok;
+  } catch { return false; }
+}
+async function handleApply(req, b) {
+  if (b.website2) return json({ ok: true }); // honeypot
+  const s = (k, n = 300) => String(b[k] ?? "").trim().slice(0, n);
+  const f = { name: s("name", 120), studio: s("studio", 120), email: cleanEmail(b.email), phone: s("phone", 40), city: s("city", 80),
+    ig: s("ig", 60).replace(/^https?:\/\/(www\.)?instagram\.com\//i, "").replace(/\/.*$/, "").replace(/^@?/, "@"), site: s("site", 200),
+    kind: s("kind", 60), size: s("size", 20), price: s("price", 20), materials: s("materials", 2000) };
+  const bio = {}; for (const [k] of APP_Q) bio[k] = s("bio_" + k, 1200);
+  if (!f.name || !f.city || f.ig.length < 2 || !f.price) return fail("Please fill in all the required fields.");
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(f.email)) return fail("Enter a valid email address.");
+  if (!APP_KINDS.includes(f.kind) || !APP_SIZES.includes(f.size)) return fail("Choose what you'll submit and its size.");
+  if (!bio.who || !bio.what || !bio.why) return fail("Please answer the first three bio questions.");
+  if ((f.kind.startsWith("Ceramics") || f.kind === "Something else") && f.materials.length < 10) return fail("Describe your materials and packaging.");
+  if (!(b.okFl && b.okOrig && b.okPack)) return fail("Please check all three boxes at the end of the form.");
+  const photos = Array.isArray(b.photos) ? b.photos.slice(0, 6) : [];
+  if (photos.length < 3) return fail("Add at least 3 photos of your work.");
+  let total = 0; const attachments = [];
+  for (const [i, p] of photos.entries()) {
+    const data = String(p?.data || "");
+    if (!/^[A-Za-z0-9+/=]+$/.test(data)) return fail("One of your photos couldn't be read. Try a JPG or PNG.");
+    const bytes = Math.floor(data.length * 3 / 4); total += bytes;
+    if (bytes > 1.2e6 || total > 3.6e6) return fail("Your photos are too large. Try fewer or smaller photos.");
+    attachments.push({ filename: `${safeId(f.name) || "artist"}-${i + 1}.jpg`, content: data });
+  }
+  if (!(await rateOk("apply:" + f.email))) return fail("You've sent a few applications already. Please try again later.", 429);
+  const id = `${now().toString(36)}${randomBytes(3).toString("hex")}`;
+  const row = (k, v) => v ? `<tr><td style="padding:6px 10px;font-weight:700;vertical-align:top;white-space:nowrap">${esc(k)}</td><td style="padding:6px 10px">${esc(v).replace(/\n/g, "<br>")}</td></tr>` : "";
+  const html = `<div style="font-family:Arial,Helvetica,sans-serif;max-width:640px;color:#141418">
+    <div style="font-weight:800;font-size:20px;color:#BE3F6B;margin-bottom:6px">New Florida artist application</div>
+    <p style="margin:0 0 14px;color:#555">Reply to this email to write back to ${esc(f.name)} directly. ${attachments.length} photos attached.</p>
+    <table style="border-collapse:collapse;font-size:15px;width:100%;background:#FAF7F2;border-radius:8px">
+      ${row("Name", f.name)}${row("Artist / studio", f.studio)}${row("Email", f.email)}${row("Phone", f.phone)}${row("City", f.city)}
+      ${row("Instagram", f.ig)}${row("Website", f.site)}${row("Submitting", f.kind)}${row("Size", f.size)}${row("Wants to receive", "$" + f.price.replace(/^\$/, "") + " per piece")}
+      ${row("Materials & packaging", f.materials)}</table>
+    <div style="font-weight:800;font-size:17px;margin:20px 0 6px">Bio answers</div>
+    <table style="border-collapse:collapse;font-size:15px;width:100%">${APP_Q.map(([k, q]) => row(q, bio[k])).join("")}</table>
+    <p style="font-size:13px;color:#777;margin-top:16px">Confirmed: lives and makes art in Florida · work is 100% original · read the guidelines and the $50 repackaging fee. Application ${id}.</p></div>`;
+  const text = [`New Florida artist application`, `Name: ${f.name}`, `Artist/studio: ${f.studio}`, `Email: ${f.email}`, `Phone: ${f.phone}`, `City: ${f.city}`, `Instagram: ${f.ig}`, `Website: ${f.site}`, `Submitting: ${f.kind}`, `Size: ${f.size}`, `Wants to receive: $${f.price.replace(/^\$/, "")} per piece`, `Materials & packaging: ${f.materials}`, "", ...APP_Q.map(([k, q]) => `${q}\n${bio[k]}`)].join("\n");
+  const sent = await sendRaw({ to: [env("TEAM_EMAIL") || "info@mystrymart.com"], reply_to: f.email, subject: `New Florida application: ${f.name} (${f.ig})`, html, text, attachments });
+  await setJ(`app/${id}`, { id, t: now(), ...f, bio, photos: attachments.length, emailed: sent });
+  if (!sent) return fail("Sorry, your application didn't go through. Please try again in a few minutes, or email info@mystrymart.com.", 502);
+  await sendMail(f.email, "We got your Mystry Mart application", [`Hi ${f.name.split(" ")[0]},`, "Thanks for applying to Mystry Mart! Our open call for Florida artists has no deadline. We're building our roster ahead of our upcoming Miami locations, and we'll reach out if there's a spot for your work.", "In the meantime, follow @mystrymart on Instagram to keep up with new machines and open calls."], { label: "Visit mystrymart.com", href: site() });
+  return json({ ok: true });
+}
+
 /* ---------------- handler ---------------- */
 export default async (req) => {
   const url = new URL(req.url);
@@ -311,6 +368,8 @@ export default async (req) => {
     if (req.headers.get("x-mm") !== "1") return fail("Bad request", 400); // blocks cross-site form posts
     try { b = await req.json(); } catch { b = {}; }
   }
+
+  if (a === "apply" && req.method === "POST") return handleApply(req, b);
 
   // ---- login ----
   if (a === "login" && req.method === "POST") {
