@@ -159,6 +159,7 @@ input,select{width:100%;font:inherit;font-size:16px;padding:9px 12px;border-radi
 .paid{color:var(--hot);font-weight:800}
 .chk{display:inline-flex;align-items:center;gap:6px;font-weight:700;font-size:13px}
 .chk input{width:18px;height:18px}
+.dlvf{display:flex;flex-wrap:wrap;gap:10px;margin:8px 0}.dlvf label{display:grid;gap:4px;font-size:12px;font-weight:700}.dlvf input[type=number],.dlvf input[type=date]{font:inherit;font-size:14px;padding:6px 8px;border-radius:8px;border:2px solid var(--line);background:var(--panel2);color:inherit;color-scheme:dark;width:auto}.dlvf .chk{display:flex;align-items:center;gap:6px;align-self:end}
 </style>
 </head>
 <body>
@@ -282,8 +283,9 @@ async function api(a,body){
 }
 
 let ARTISTS=[],ORDERS=[],ALERTS=[],PAYOUTS=[],loaded=false;
-const sel={},ui={cancel:null,editPrice:null,confirm:null,editing:null,q:'',deal:'',show:'active',busy:false};
+const sel={},ui={dlv:null,cancel:null,editPrice:null,confirm:null,editing:null,q:'',deal:'',show:'active',busy:false};
 const byId=id=>ARTISTS.find(a=>a.id===id);
+const stock=aid=>ORDERS.filter(o=>o.artist===aid&&o.status==='received').reduce((s,o)=>s+(o.qty||QTY),0)-PAYOUTS.filter(p=>p.artist===aid).reduce((s,p)=>s+(p.sold||0),0);
 const latest=aid=>ORDERS.filter(o=>o.artist===aid).sort((a,b)=>b.placed-a.placed)[0];
 const isOpen=o=>o&&o.status!=='received';
 function take(p){ARTISTS=p.artists||[];ORDERS=p.orders||[];ALERTS=p.alerts||[];PAYOUTS=p.payouts||[];QTY=p.qty||50;loaded=true;
@@ -298,6 +300,11 @@ function statusChip(o){if(!o)return'';
   if(o.status==='ordered')return'<span class="chip st" style="background:var(--warm)">Ordered '+fmtD(o.placed)+' · waiting on tracking</span>';
   if(o.status==='transit')return'<span class="chip st" style="background:#A99BFF">In transit</span>';
   return'<span class="chip st" style="background:var(--hot)">Received '+fmtD(o.received)+'</span>';}
+function dlvUi(a){const d=new Date(),v=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  return`<div class="confirm dlv"><span><b>Log pieces we already have</b> from ${esc(a.name)}. No emails are sent.</span>
+    <div class="dlvf"><label>Pieces<input id="dq-${esc(a.id)}" type="number" min="1" max="1000" inputmode="numeric" value="${QTY}"></label><label>Arrived<input id="dd-${esc(a.id)}" type="date" max="${v}" value="${v}"></label>
+    ${a.deal==='Wholesale'?`<label class="chk"><input type="checkbox" id="dp-${esc(a.id)}"> Already paid</label>`:''}</div>
+    <div><button class="btn sm" type="button" data-dlvsave="${esc(a.id)}">Save</button><button class="btn ghost sm" type="button" data-dlvno>Cancel</button></div></div>`;}
 function cancelUi(o){
   if(ui.cancel!==o.id)return`<span class="links"><button class="linkbtn" type="button" data-cx="${esc(o.id)}">Cancel order</button></span>`;
   return`<div class="confirm"><span>Cancel this order? It's removed from HQ, Payouts and ${esc(o.artistName||'the artist')}'s portal.</span><div><button class="btn danger sm" type="button" data-cxyes="${esc(o.id)}" data-n="1">Cancel + email artist</button><button class="btn ghost sm" type="button" data-cxyes="${esc(o.id)}" data-n="0">Cancel, no email</button><button class="btn ghost sm" type="button" data-cxno>Keep</button></div></div>`;}
@@ -345,11 +352,11 @@ function row(a,max){
   else action=`${open?`<small>${o.status==='ordered'?'An order is open. Waiting on their tracking number.':'Their last order is on the way.'}</small>`:''}
     <span class="sum">${picked.length?picked.length+' piece'+(picked.length>1?'s':'')+' picked · ':'Artist’s choice of pieces · '}${cost}</span>
     <button class="btn" type="button" data-order="${esc(a.id)}" ${open?'disabled':''}>Order ${QTY} pieces</button>
-    <span class="links"><button class="linkbtn" type="button" data-edit="${esc(a.id)}">Edit</button><button class="linkbtn" type="button" data-rm="${esc(a.id)}">Remove</button></span>${open&&o.status==='ordered'?cancelUi(o):''}`;
+    <span class="links"><button class="linkbtn" type="button" data-edit="${esc(a.id)}">Edit</button><button class="linkbtn" type="button" data-dlv="${esc(a.id)}">Log delivery</button><button class="linkbtn" type="button" data-rm="${esc(a.id)}">Remove</button></span>${open&&o.status==='ordered'?cancelUi(o):''}${ui.dlv===a.id?dlvUi(a):''}`;
   return `<div class="row ${a.active===false?'off':''}">
     <div><div class="who">${avatar(a)}<div><b>${esc(a.name)}</b><span>${a.studio?esc(a.studio)+' · ':''}${esc(a.handle)}</span></div></div>
       ${(a.clicks||0)>0?`<div class="clk"><div class="bar"><i style="width:${Math.round(a.clicks/max*100)}%"></i></div><span>${a.clicks}</span><span style="font-family:var(--f-body);font-size:12px;color:var(--mute)">visits</span></div>`:''}
-      <div class="chips">${priceUi}${dealUi}${statusChip(o)}</div></div>
+      <div class="chips">${priceUi}${dealUi}${statusChip(o)}${(()=>{const n=stock(a.id);return n>0?`<span class="chip">${n} in stock</span>`:''})()}</div></div>
     ${pieces}<div class="ord">${action}</div></div>`;
 }
 const team=document.querySelector('[data-view="team"]');
@@ -360,6 +367,9 @@ team.addEventListener('click',async e=>{const t=e.target.closest('button');if(!t
   if(t.dataset.psave){savePrice(t.dataset.psave);return;}
   if(t.dataset.order){const a=byId(t.dataset.order);t.disabled=true;if(await act('order',{artistId:a.id,works:sel[a.id]||[]},'Order placed for '+a.name+'.'))sel[a.id]=[];renderTeam();return;}
   if(t.dataset.recv){t.disabled=true;await act('received',{orderId:t.dataset.recv},'Marked received.');return;}
+  if(t.dataset.dlv){ui.dlv=ui.dlv===t.dataset.dlv?null:t.dataset.dlv;renderTeam();return;}
+  if(t.hasAttribute('data-dlvno')){ui.dlv=null;renderTeam();return;}
+  if(t.dataset.dlvsave){const id=t.dataset.dlvsave,p=$('dp-'+id);const body={artistId:id,qty:$('dq-'+id).value,date:$('dd-'+id).value,paid:!!(p&&p.checked)};ui.dlv=null;t.disabled=true;await act('delivery',body,'Delivery logged.');return;}
   if(t.dataset.cx){ui.cancel=t.dataset.cx;renderTeam();return;}
   if(t.hasAttribute('data-cxno')){ui.cancel=null;renderTeam();return;}
   if(t.dataset.cxyes){const id=t.dataset.cxyes,n=t.dataset.n==='1';ui.cancel=null;t.disabled=true;await act('cancel',{orderId:id,notify:n},n?'Order cancelled. Artist emailed.':'Order cancelled.');return;}
