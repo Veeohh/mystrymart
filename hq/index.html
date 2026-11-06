@@ -159,6 +159,13 @@ input,select{width:100%;font:inherit;font-size:16px;padding:9px 12px;border-radi
 .paid{color:var(--hot);font-weight:800}
 .chk{display:inline-flex;align-items:center;gap:6px;font-weight:700;font-size:13px}
 .chk input{width:18px;height:18px}
+textarea{width:100%;font:inherit;font-size:15px;padding:9px 12px;border-radius:10px;border:2px solid var(--line);background:var(--panel2);color:var(--text);resize:vertical}
+.tab b.nb{display:inline-block;min-width:18px;margin-left:6px;padding:0 5px;border-radius:999px;background:var(--pink);color:var(--ink);font-size:12px;text-align:center}
+.wks{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px}
+.wk{background:var(--panel);border:2px solid var(--line);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:10px}
+.wk .ph{display:flex;gap:8px;overflow-x:auto}.wk .ph a{flex:none}.wk .ph img{height:150px;width:auto;max-width:220px;object-fit:cover;border-radius:8px;border:2px solid var(--line);background:#fff}
+.wk h4{margin:0;font-size:17px}.wk dl{margin:0;display:grid;grid-template-columns:auto 1fr;gap:3px 10px;font-size:13px}.wk dt{color:var(--mute);font-weight:700}.wk dd{margin:0;color:var(--soft);white-space:pre-wrap}
+.wk .acts{display:flex;gap:8px;flex-wrap:wrap}.wk.done{opacity:.8}
 .dlvf{display:flex;flex-wrap:wrap;gap:10px;margin:8px 0}.dlvf label{display:grid;gap:4px;font-size:12px;font-weight:700}.dlvf input[type=number],.dlvf input[type=date]{font:inherit;font-size:14px;padding:6px 8px;border-radius:8px;border:2px solid var(--line);background:var(--panel2);color:inherit;color-scheme:dark;width:auto}.dlvf .chk{display:flex;align-items:center;gap:6px;align-self:end}
 </style>
 </head>
@@ -169,6 +176,7 @@ input,select{width:100%;font:inherit;font-size:16px;padding:9px 12px;border-radi
     <nav class="tabs" aria-label="Views" id="tabs" hidden>
       <a class="tab" href="#team" data-v="team">Artists &amp; orders</a>
       <a class="tab" href="#payouts" data-v="payouts">Payouts</a>
+      <a class="tab" href="#works" data-v="works">New works<b class="nb" id="wN" hidden></b></a>
     </nav>
     <button class="act" id="actBtn" type="button" aria-expanded="false" hidden>Emails &amp; alerts<b id="actN">0</b></button>
     <button class="act" id="outBtn" type="button" hidden>Log out</button>
@@ -219,7 +227,7 @@ input,select{width:100%;font:inherit;font-size:16px;padding:9px 12px;border-radi
           <div id="slugRow"><label for="fSlug">Their page on mystrymart.com</label><input id="fSlug" placeholder="e.g. flora for mystrymart.com/flora" autocomplete="off"><p class="hint">Links their click count. Can't be changed later.</p></div>
           <div></div>
           <div><label for="fPhoto">Profile photo</label><input id="fPhoto" type="file" accept="image/*"><div class="thumbs" id="fPhotoPrev"></div></div>
-          <div><label for="fWorks">Artwork photos (up to 4)</label><input id="fWorks" type="file" accept="image/*" multiple><div class="thumbs" id="fWorksPrev"></div></div>
+          <div><label for="fWorks">Artwork photos (up to 12)</label><input id="fWorks" type="file" accept="image/*" multiple><div class="thumbs" id="fWorksPrev"></div></div>
         </div>
         <p class="err" id="fErr" role="alert"></p>
         <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" type="submit" id="fSave">Save artist</button><button class="btn ghost" type="button" id="fCancel">Cancel</button></div>
@@ -238,6 +246,14 @@ input,select{width:100%;font:inherit;font-size:16px;padding:9px 12px;border-radi
         <p class="err" id="impErr" role="alert"></p>
       </form>
     </div>
+  </section>
+
+  <!-- NEW WORKS -->
+  <section data-view="works" hidden>
+    <h1>New works</h1>
+    <p class="lede">Artwork artists sent through their portal for approval. Approving adds the photo to their artwork so you can pick it when ordering. The artist gets an email either way.</p>
+    <div class="bay"><div class="bay-h"><span class="dot" style="background:var(--warm)"></span><h2>Waiting for review</h2></div><div class="wks" id="wPend"></div></div>
+    <div class="bay"><div class="bay-h"><span class="dot" style="background:var(--line)"></span><h2>Reviewed</h2><p>Last 60 days.</p></div><div class="wks" id="wDone"></div></div>
   </section>
 
   <!-- PAYOUTS -->
@@ -282,13 +298,13 @@ async function api(a,body){
   return j;
 }
 
-let ARTISTS=[],ORDERS=[],ALERTS=[],PAYOUTS=[],loaded=false;
-const sel={},ui={dlv:null,cancel:null,editPrice:null,confirm:null,editing:null,q:'',deal:'',show:'active',busy:false};
+let ARTISTS=[],ORDERS=[],ALERTS=[],PAYOUTS=[],SUBS=[],loaded=false;
+const sel={},ui={deny:null,dlv:null,cancel:null,editPrice:null,confirm:null,editing:null,q:'',deal:'',show:'active',busy:false};
 const byId=id=>ARTISTS.find(a=>a.id===id);
 const stock=aid=>ORDERS.filter(o=>o.artist===aid&&o.status==='received').reduce((s,o)=>s+(o.qty||QTY),0)-PAYOUTS.filter(p=>p.artist===aid).reduce((s,p)=>s+(p.sold||0),0);
 const latest=aid=>ORDERS.filter(o=>o.artist===aid).sort((a,b)=>b.placed-a.placed)[0];
-const isOpen=o=>o&&o.status!=='received';
-function take(p){ARTISTS=p.artists||[];ORDERS=p.orders||[];ALERTS=p.alerts||[];PAYOUTS=p.payouts||[];QTY=p.qty||50;loaded=true;
+const isOpen=o=>o&&(o.status==='ordered'||o.status==='transit');
+function take(p){ARTISTS=p.artists||[];ORDERS=p.orders||[];ALERTS=p.alerts||[];PAYOUTS=p.payouts||[];SUBS=p.subs||[];QTY=p.qty||50;loaded=true;
   setStatus('ok','Updates every 20 seconds. Changes save as soon as you make them.');renderAll();}
 async function act(a,body,okMsg){if(ui.busy)return false;ui.busy=true;
   try{take(await api(a,body));if(okMsg)toast(okMsg);return true;}
@@ -299,6 +315,7 @@ async function act(a,body,okMsg){if(ui.busy)return false;ui.busy=true;
 function statusChip(o){if(!o)return'';
   if(o.status==='ordered')return'<span class="chip st" style="background:var(--warm)">Ordered '+fmtD(o.placed)+' · waiting on tracking</span>';
   if(o.status==='transit')return'<span class="chip st" style="background:#A99BFF">In transit</span>';
+  if(o.status==='declined')return'<span class="chip st" style="background:var(--cold)">Couldn’t send · '+fmtD(o.declined)+'</span>';
   return'<span class="chip st" style="background:var(--hot)">Received '+fmtD(o.received)+'</span>';}
 function dlvUi(a){const d=new Date(),v=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
   return`<div class="confirm dlv"><span><b>Log pieces we already have</b> from ${esc(a.name)}. No emails are sent.</span>
@@ -349,7 +366,7 @@ function row(a,max){
   let action;
   if(ui.show==='off')action=`<button class="btn" type="button" data-restore="${esc(a.id)}">Restore to roster</button>`;
   else if(ui.confirm===a.id)action=`<div class="confirm"><span>Remove ${esc(a.name)} from the roster? They lose portal access. Order history stays.</span><div><button class="btn danger sm" type="button" data-rmyes="${esc(a.id)}">Remove</button><button class="btn ghost sm" type="button" data-rmno>Keep</button></div></div>`;
-  else action=`${open?`<small>${o.status==='ordered'?'An order is open. Waiting on their tracking number.':'Their last order is on the way.'}</small>`:''}
+  else action=`${open?`<small>${o.status==='ordered'?'An order is open. Waiting on their tracking number.':'Their last order is on the way.'}</small>`:o&&o.status==='declined'?`<small>They couldn’t send the ${fmtD(o.placed)} order${o.declineReason?': “'+esc(o.declineReason)+'”':'.'}</small>`:''}
     <span class="sum">${picked.length?picked.length+' piece'+(picked.length>1?'s':'')+' picked · ':'Artist’s choice of pieces · '}${cost}</span>
     <button class="btn" type="button" data-order="${esc(a.id)}" ${open?'disabled':''}>Order ${QTY} pieces</button>
     <span class="links"><button class="linkbtn" type="button" data-edit="${esc(a.id)}">Edit</button><button class="linkbtn" type="button" data-dlv="${esc(a.id)}">Log delivery</button><button class="linkbtn" type="button" data-rm="${esc(a.id)}">Remove</button></span>${open&&o.status==='ordered'?cancelUi(o):''}${ui.dlv===a.id?dlvUi(a):''}`;
@@ -397,7 +414,7 @@ function drawThumbs(){
   $('fWorksPrev').innerHTML=fWorks.map((w,i)=>`<span><img src="${w}" alt="Artwork ${i+1}"><button type="button" data-rmw="${i}" aria-label="Remove artwork ${i+1}">×</button></span>`).join('');}
 $('artForm').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;if(b.hasAttribute('data-rmph')){fPhoto='';drawThumbs();}if(b.dataset.rmw!=null){fWorks.splice(+b.dataset.rmw,1);drawThumbs();}});
 $('fPhoto').addEventListener('change',async e=>{const f=e.target.files[0];if(f){try{fPhoto=await resize(f,96,96);}catch(_){$('fErr').textContent='That photo couldn’t be read. Try a JPG or PNG.';}drawThumbs();}e.target.value='';});
-$('fWorks').addEventListener('change',async e=>{for(const f of [...e.target.files]){if(fWorks.length>=4)break;try{fWorks.push(await resize(f,150,190));}catch(_){$('fErr').textContent='One photo couldn’t be read. Try a JPG or PNG.';}}drawThumbs();e.target.value='';});
+$('fWorks').addEventListener('change',async e=>{for(const f of [...e.target.files]){if(fWorks.length>=12)break;try{fWorks.push(await resize(f,150,190));}catch(_){$('fErr').textContent='One photo couldn’t be read. Try a JPG or PNG.';}}drawThumbs();e.target.value='';});
 function openForm(a){ui.editing=a?a.id:null;$('afTitle').textContent=a?'Edit '+a.name:'Add an artist';$('fErr').textContent='';$('slugRow').hidden=!!a;
   $('fName').value=a?a.name:'';$('fStudio').value=a?(a.studio||''):'';$('fEmail').value=a?a.email:'';$('fHandle').value=a?(a.handle||''):'';$('fSlug').value='';
   $('fPrice').value=a?a.price:'';$('fDeal').value=a?a.deal:'Consignment';fPhoto=a?(a.photo||''):'';fWorks=a?[...(a.works||[])]:[];drawThumbs();
@@ -406,7 +423,7 @@ $('addBtn').onclick=()=>openForm(null);
 $('fCancel').onclick=()=>{$('artForm').hidden=true;ui.editing=null;};
 $('artForm').addEventListener('submit',async e=>{e.preventDefault();
   const body={id:ui.editing||'',slug:$('fSlug').value.trim().replace(/^.*mystrymart\.com\//i,'').replace(/\/.*$/,''),name:$('fName').value.trim(),studio:$('fStudio').value.trim(),email:$('fEmail').value.trim(),
-    handle:$('fHandle').value.trim(),price:$('fPrice').value,deal:$('fDeal').value,photo:fPhoto,works:fWorks.slice(0,4)};
+    handle:$('fHandle').value.trim(),price:$('fPrice').value,deal:$('fDeal').value,photo:fPhoto,works:fWorks.slice(0,12)};
   if(!body.name||!body.email||body.price===''){$('fErr').textContent='Fill in the name, email and price.';return;}
   if(!ui.editing&&body.slug&&byId(body.slug.toLowerCase())){$('fErr').textContent='An artist with that page already exists.';return;}
   $('fSave').disabled=true;const ok=await act('artist-save',{artist:body},ui.editing?'Saved.':body.name+' added. They can log in to their portal now.');$('fSave').disabled=false;
@@ -414,6 +431,31 @@ $('artForm').addEventListener('submit',async e=>{e.preventDefault();
 $('impFile').addEventListener('change',async e=>{const f=e.target.files[0];if(!f)return;$('impErr').textContent='';
   try{const data=JSON.parse(await f.text());const r=await api('import',{artists:data.artists||data});take(r);toast(r.added+' artists loaded.');}
   catch(err){$('impErr').textContent=err.message||'That file couldn’t be read.';}e.target.value='';});
+
+/* ---------- new works ---------- */
+const IMG=(id,n)=>API+'?a=sub-img&id='+encodeURIComponent(id)+'&n='+n;
+function wkCard(x){const a=byId(x.artist)||{name:x.artistName,handle:''},done=x.status!=='pending';
+  const ph=Array.from({length:x.n||0},(_,i)=>`<a href="${IMG(x.id,i)}" target="_blank" rel="noopener"><img src="${IMG(x.id,i)}" alt="${esc(x.title)} photo ${i+1}" loading="lazy"></a>`).join('');
+  let acts='';
+  if(!done){acts=ui.deny===x.id?`<div class="confirm"><label for="dn-${esc(x.id)}" style="margin:0">Note to ${esc(a.name)} <span style="font-weight:400;color:var(--mute)">(optional, included in the email)</span></label><textarea id="dn-${esc(x.id)}" rows="2" maxlength="800"></textarea><div><button class="btn danger sm" type="button" data-wno="${esc(x.id)}">Send “not approved”</button><button class="btn ghost sm" type="button" data-wcancel>Back</button></div></div>`
+    :`<div class="acts"><button class="btn" type="button" data-wok="${esc(x.id)}">Approve</button><button class="btn ghost" type="button" data-wdeny="${esc(x.id)}">Not approved</button></div>`;}
+  else acts=`<span class="chip st" style="align-self:flex-start;background:${x.status==='approved'?'var(--hot)':'var(--cold)'}">${x.status==='approved'?'Approved':'Not approved'} ${fmtD(x.decidedAt)}${x.addedToWorks?' · added to artwork':''}</span>${x.note?`<span class="meta">Note: ${esc(x.note)}</span>`:''}`;
+  return`<article class="wk ${done?'done':''}"><div class="who">${avatar(a)}<div><b>${esc(a.name)}</b><span>${esc(a.handle||'')} · sent ${fmtD(x.t)}</span></div></div>
+    <div class="ph">${ph}</div><h4>${esc(x.title)}</h4>
+    <dl><dt>Kind</dt><dd>${esc(x.kind)}</dd><dt>Size</dt><dd>${esc(x.size)}</dd><dt>Wants</dt><dd>${money(x.price)} per piece${a.price!=null&&a.price!==x.price?` (their current price is ${money(a.price)})`:''}</dd>${x.notes?`<dt>Notes</dt><dd>${esc(x.notes)}</dd>`:''}</dl>${acts}</article>`;}
+function renderWorks(){const pend=SUBS.filter(x=>x.status==='pending').sort((a,b)=>a.t-b.t),done=SUBS.filter(x=>x.status!=='pending'&&Date.now()-(x.decidedAt||0)<60*DAY);
+  $('wN').textContent=pend.length;$('wN').hidden=!pend.length;
+  $('wPend').innerHTML=pend.length?pend.map(wkCard).join(''):'<p class="empty">Nothing to review. When an artist submits new work in their portal, it shows up here and in your inbox.</p>';
+  $('wDone').innerHTML=done.length?done.map(wkCard).join(''):'<p class="empty">Nothing reviewed yet.</p>';
+  if(ui.deny){const t=$('dn-'+ui.deny);if(t&&ui.denyText!=null)t.value=ui.denyText;}}
+const wv=document.querySelector('[data-view="works"]');
+wv.addEventListener('input',e=>{if(e.target.id&&e.target.id.startsWith('dn-'))ui.denyText=e.target.value;});
+wv.addEventListener('click',async e=>{const t=e.target.closest('button');if(!t)return;
+  if(t.dataset.wok){t.disabled=true;await act('work-decide',{id:t.dataset.wok,decision:'approve'},'Approved. The artist was emailed.');return;}
+  if(t.dataset.wdeny){ui.deny=t.dataset.wdeny;ui.denyText='';renderWorks();const x=$('dn-'+ui.deny);if(x)x.focus();return;}
+  if(t.hasAttribute('data-wcancel')){ui.deny=null;renderWorks();return;}
+  if(t.dataset.wno){const id=t.dataset.wno,note=($('dn-'+id)||{}).value||'';ui.deny=null;t.disabled=true;await act('work-decide',{id,decision:'deny',note},'Sent. The artist was emailed.');return;}
+});
 
 /* ---------- payouts ---------- */
 const monthOf=t=>{const d=new Date(t);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');};
@@ -443,12 +485,12 @@ ab.onclick=()=>{dr.hidden=!dr.hidden;ab.setAttribute('aria-expanded',String(!dr.
 $('drawerX').onclick=()=>{dr.hidden=true;ab.setAttribute('aria-expanded','false');ab.focus();};
 
 /* ---------- routing / login ---------- */
-const VIEWS=['team','payouts'];let authed=false;
+const VIEWS=['team','payouts','works'];let authed=false;
 function route(){if(!authed)return;const v=VIEWS.includes(location.hash.slice(1))?location.hash.slice(1):'team';
   document.querySelectorAll('[data-view]').forEach(s=>s.hidden=s.dataset.view!==v);
   document.querySelectorAll('.tab').forEach(t=>{if(t.dataset.v===v)t.setAttribute('aria-current','page');else t.removeAttribute('aria-current');});}
-function renderAll(){if(!authed)return;renderTeam();renderPayouts();renderMails();}
-window.addEventListener('hashchange',route);
+function renderAll(){if(!authed)return;renderTeam();renderPayouts();renderWorks();renderMails();}
+window.addEventListener('hashchange',()=>{route();if(authed)load();});
 function showLogin(msg){authed=false;$('login').hidden=false;['tabs','actBtn','outBtn'].forEach(i=>$(i).hidden=true);document.querySelectorAll('[data-view]').forEach(s=>s.hidden=true);
   setStatus('wait',msg||'Log in to continue.');}
 $('lf').addEventListener('submit',async e=>{e.preventDefault();$('lbtn').disabled=true;$('lmsg').textContent='Sending…';
@@ -462,7 +504,7 @@ async function load(){try{take(await api('hq'));}catch(e){if(e.status===401)show
   try{const me=await api('me');if(me.role!=='team')throw{status:401};}catch(e){showLogin();return;}
   authed=true;$('login').hidden=true;['tabs','actBtn','outBtn'].forEach(i=>$(i).hidden=false);route();
   await load();
-  setInterval(()=>{const ae=document.activeElement;if(ui.busy||ui.editPrice||!$('artForm').hidden||(ae&&/INPUT|SELECT/.test(ae.tagName)&&ae.closest('[data-view="payouts"]')))return;if(document.visibilityState==='visible')load();},20000);
+  setInterval(()=>{const ae=document.activeElement;if(ui.busy||ui.editPrice||ui.deny||!$('artForm').hidden||(ae&&/INPUT|SELECT/.test(ae.tagName)&&ae.closest('[data-view="payouts"]')))return;if(document.visibilityState==='visible')load();},20000);
 })();
 })();
 </script>
