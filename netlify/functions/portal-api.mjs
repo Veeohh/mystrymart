@@ -70,7 +70,9 @@ async function sendMail(to, subject, lines, button, opts = {}) {
   } catch { return false; }
 }
 
-async function addAlert(a, kind, order) {
+const TEAM_KINDS = ["tracking", "declined", "work"];
+async function addAlert(a, kind, order, extra = {}) {
+  if (kind === "declined" || kind === "work" || kind === "work-ok" || kind === "work-no") return addAlert2(a, kind, order, extra);
   const subj = kind === "order" ? `New Mystry Mart order: ${QTY} pieces` : kind === "received" ? "Your pieces arrived" : "Tracking number received";
   const via = order?.via ? ` (${order.via})` : "";
   const body =
@@ -89,8 +91,10 @@ async function addAlert(a, kind, order) {
         ? [`Three easy ways to send your tracking number, no login needed:`,
            `1. Reply to this email with the tracking number.`,
            `2. When you buy your label on Pirate Ship (or any label site), put ${addr} as the recipient's email. Your tracking gets to us automatically.`,
-           `3. Tap the button below and paste it in.`]
-        : [`When it ships, tap the button below and paste in your tracking number. No login needed.`];
+           `3. Tap the button below and paste it in.`,
+           `Can't fill this request? Tap the button below and choose "Can't send this." It won't affect future requests.`]
+        : [`When it ships, tap the button below and paste in your tracking number. No login needed.`,
+           `Can't fill this request? Tap the button below and choose "Can't send this." It won't affect future requests.`];
       emailed = await sendMail(a.email, subj, [`Hi ${String(a.name).split(" ")[0]},`, body, ...how],
         { label: "Add tracking number", href: `${site()}/portal/?track=${order.tk}` },
         { replyTo: addr || undefined, footer: addr ? "Replies to this email go to this order. Questions? Write to info@mystrymart.com." : undefined,
@@ -109,6 +113,43 @@ async function addAlert(a, kind, order) {
   const al = { id, artist: a.id, artistName: a.name, email: kind === "tracking" ? "team" : a.email, kind, subj, body, t: now(), emailed, forTeam: kind === "tracking", order: order?.id || null };
   await setJ(`alert/${id}`, al);
   return al;
+}
+
+// Team alerts for declines / new work, and artist alerts for work decisions.
+async function addAlert2(a, kind, order, extra) {
+  const first = String(a.name || "").split(" ")[0] || "there";
+  let subj, body, to, emailed = false;
+  const forTeam = TEAM_KINDS.includes(kind);
+  if (kind === "declined") {
+    subj = `${a.name} can't send their order`;
+    body = `${a.name} can't fill the ${order.qty || QTY}-piece request from ${new Date(order.placed).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "America/New_York" })}${extra.reason ? `. Their note: "${extra.reason}"` : "."} You can order from another artist.`;
+    emailed = await sendMail(env("TEAM_EMAIL") || "info@mystrymart.com", subj, [body], { label: "Open HQ", href: site() + "/hq/" }, { replyTo: a.email || undefined });
+  } else if (kind === "work") {
+    subj = `New work from ${a.name}: ${extra.title}`;
+    body = `${a.name} submitted "${extra.title}" (${extra.kind}, ${extra.size}, $${extra.price}) for approval.`;
+    emailed = !!extra.emailed;
+  } else {
+    const ok = kind === "work-ok";
+    subj = ok ? `Approved: ${extra.title}` : `Update on "${extra.title}"`;
+    body = ok
+      ? `Good news! "${extra.title}" is approved for Mystry Mart's machines. Please don't ship it yet: we'll include it in a future request, and you'll get an email when we do.`
+      : `Thanks for sending "${extra.title}". It isn't a fit for our machines right now, so please don't ship it.${extra.note ? "" : " You're welcome to submit other work anytime."}`;
+    const lines = [`Hi ${first},`, body];
+    if (extra.note) lines.push(`A note from Mystry Mart: ${extra.note}`);
+    emailed = await sendMail(a.email, subj, lines, { label: "Open your artist portal", href: site() + "/portal/" });
+  }
+  to = forTeam ? "team" : a.email;
+  const id = `${now().toString(36)}${randomBytes(3).toString("hex")}`;
+  const al = { id, artist: a.id, artistName: a.name, email: to, kind, subj, body, t: now(), emailed, forTeam, order: order?.id || null, sub: extra.subId || null };
+  await setJ(`alert/${id}`, al);
+  return al;
+}
+async function declineOrder(o, reason, via) {
+  const art = (await getJ(`artist/${o.artist}`)) || { id: o.artist, name: o.artistName, email: "" };
+  Object.assign(o, { status: "declined", declined: now(), declineReason: String(reason || "").trim().slice(0, 500), via });
+  await setJ(`order/${o.id}`, o);
+  await addAlert(art, "declined", o, { reason: o.declineReason });
+  return o;
 }
 
 /* ---------------- tracking by email / one-tap link ---------------- */
@@ -288,17 +329,18 @@ async function clickCounts() {
 const publicArtist = (a) => ({ id: a.id, name: a.name, studio: a.studio || "", handle: a.handle || "", price: a.price, deal: a.deal, photo: a.photo || "", works: a.works || [] });
 
 async function hqPayload() {
-  const [as, os, als, clicks, pays] = await Promise.all([artists(), orders(), listJ("alert/"), clickCounts(), listJ("payout/")]);
+  const [as, os, als, clicks, pays, subs] = await Promise.all([artists(), orders(), listJ("alert/"), clickCounts(), listJ("payout/"), listJ("sub/")]);
   for (const a of as) { a.clicks = clicks[a.id] || 0; (a.aliases || []).forEach((s) => (a.clicks += clicks[s] || 0)); delete a._key; }
   os.forEach((o) => delete o._key);
-  return { artists: as, orders: os, alerts: als.sort((x, y) => y.t - x.t).slice(0, 300).map(({ _key, ...r }) => r), payouts: pays.map(({ _key, ...r }) => r), qty: QTY };
+  return { artists: as, orders: os, alerts: als.sort((x, y) => y.t - x.t).slice(0, 300).map(({ _key, ...r }) => r), payouts: pays.map(({ _key, ...r }) => r), subs: subs.sort((x, y) => y.t - x.t).slice(0, 300).map(({ _key, ...r }) => r), qty: QTY };
 }
 async function portalPayload(s) {
   const a = s.artist;
   const os = (await orders()).filter((o) => o.artist === a.id).map(({ _key, by, receivedBy, ...r }) => ({ ...r, inbox: r.status === "ordered" ? inboxFor(r) : "" }));
   const als = (await listJ("alert/")).filter((x) => x.artist === a.id && !x.forTeam).sort((x, y) => y.t - x.t).slice(0, 50).map(({ _key, email, ...r }) => r);
   const pays = (await listJ("payout/")).filter((p) => p.artist === a.id).map(({ _key, ...r }) => r);
-  return { artist: { ...publicArtist(a), email: a.email }, orders: os, alerts: als, payouts: pays, qty: QTY };
+  const subs = (await listJ("sub/")).filter((x) => x.artist === a.id).sort((x, y) => y.t - x.t).slice(0, 60).map(({ _key, by, ...r }) => r);
+  return { artist: { ...publicArtist(a), email: a.email }, orders: os, alerts: als, payouts: pays, subs, qty: QTY };
 }
 
 /* ---------------- artist applications (emailed to the team) ---------------- */
@@ -358,6 +400,55 @@ async function handleApply(req, b) {
   return json({ ok: true });
 }
 
+/* ---------------- new work submitted by artists ---------------- */
+const WORK_KINDS = ["Standard print (wholesale)", "Specialty print: Giclée, Riso, block, AR or special edition (wholesale)", "Original on paper (consignment)",
+  "Original on canvas (consignment)", "Ceramics or glass (consignment)", "Something else (consignment)"];
+const WORK_SIZES = ["4x6 in", "5x7 in", "Other"];
+async function handleWorkSubmit(s, b) {
+  const a = s.artist;
+  const str = (k, n) => String(b[k] ?? "").trim().slice(0, n);
+  const f = { title: str("title", 100), kind: str("kind", 90), size: str("size", 20), notes: str("notes", 1500) };
+  const price = Math.round(parseFloat(String(b.price ?? "").replace(/^\$/, "")) * 100) / 100;
+  if (!f.title) return fail("Give your work a title.");
+  if (!WORK_KINDS.includes(f.kind)) return fail("Choose what kind of work it is.");
+  if (!WORK_SIZES.includes(f.size)) return fail("Choose the size.");
+  if (!(price > 0)) return fail("Enter the amount you want to receive per piece, like 8 or 25.");
+  const cap = [5, 8, 50, 50, 50, 50][WORK_KINDS.indexOf(f.kind)];
+  if (price > cap) return fail(cap === 5 ? "Standard prints are $5 per piece." : `The most for this kind of work is $${cap} per piece.`);
+  if ((f.kind.startsWith("Something else") || f.size === "Other") && f.notes.length < 10) return fail("Describe the work, its size and how it's packaged.");
+  const photos = Array.isArray(b.photos) ? b.photos.slice(0, 3) : [];
+  if (!photos.length) return fail("Add at least one photo of the work.");
+  let total = 0; const datas = [];
+  for (const p of photos) {
+    const d = String(p || "");
+    if (!/^[A-Za-z0-9+/=]+$/.test(d)) return fail("One of your photos couldn't be read. Try a JPG or PNG.");
+    const bytes = Math.floor(d.length * 3 / 4); total += bytes;
+    if (bytes > 1.2e6 || total > 3e6) return fail("Your photos are too large. Try fewer or smaller photos.");
+    datas.push(d);
+  }
+  const thumb = typeof b.thumb === "string" && /^data:image\/(webp|jpeg);base64,[A-Za-z0-9+/=]+$/.test(b.thumb) && b.thumb.length < 80000 ? b.thumb : "";
+  const mine = (await listJ("sub/")).filter((x) => x.artist === a.id);
+  if (mine.filter((x) => x.status === "pending").length >= 10) return fail("You have 10 works waiting for review. We'll get to them soon!");
+  if (!(await rateOk("work:" + a.id))) return fail("You've submitted a lot in the last hour. Please try again later.", 429);
+  const id = `w-${now().toString(36)}${randomBytes(3).toString("hex")}`;
+  for (const [i, d] of datas.entries()) await setJ(`subimg/${id}/${i}`, { d });
+  const rec = { id, artist: a.id, artistName: a.name, t: now(), ...f, price, thumb, n: datas.length, status: "pending" };
+  const row = (k, v) => v ? `<tr><td style="padding:6px 10px;font-weight:700;vertical-align:top;white-space:nowrap">${esc(k)}</td><td style="padding:6px 10px">${esc(v).replace(/\n/g, "<br>")}</td></tr>` : "";
+  const html = `<div style="font-family:Arial,Helvetica,sans-serif;max-width:640px;color:#141418">
+    <div style="font-weight:800;font-size:20px;color:#BE3F6B;margin-bottom:6px">New work submitted for approval</div>
+    <p style="margin:0 0 14px;color:#555">${esc(a.name)} sent this through their artist portal. ${datas.length} photo${datas.length > 1 ? "s" : ""} attached. Approve it or say no in HQ.</p>
+    <table style="border-collapse:collapse;font-size:15px;width:100%;background:#FAF7F2;border-radius:8px">
+      ${row("Artist", a.name)}${row("Email", a.email)}${row("Title", f.title)}${row("Kind", f.kind)}${row("Size", f.size)}${row("Wants to receive", "$" + price + " per piece")}${row("Notes", f.notes)}</table>
+    <p style="margin:22px 0"><a href="${esc(site() + "/hq/#works")}" style="background:#D9F53B;color:#141418;border:3px solid #141418;border-radius:10px;padding:12px 20px;font-weight:800;text-decoration:none;display:inline-block">Review in HQ</a></p></div>`;
+  const text = [`New work submitted for approval`, `Artist: ${a.name} (${a.email})`, `Title: ${f.title}`, `Kind: ${f.kind}`, `Size: ${f.size}`, `Wants to receive: $${price} per piece`, `Notes: ${f.notes}`, ``, `Review in HQ: ${site()}/hq/#works`].join("\n");
+  const emailed = await sendRaw({ to: [env("TEAM_EMAIL") || "info@mystrymart.com"], reply_to: a.email, subject: `New work from ${a.name}: ${f.title}`.slice(0, 140), html, text,
+    attachments: datas.map((d, i) => ({ filename: `${safeId(a.name) || "artist"}-${safeId(f.title) || "work"}-${i + 1}.jpg`, content: d })) });
+  rec.emailed = emailed;
+  await setJ(`sub/${id}`, rec);
+  await addAlert(a, "work", null, { ...f, price, emailed, subId: id });
+  return json(await portalPayload(s));
+}
+
 /* ---------------- handler ---------------- */
 export default async (req) => {
   const url = new URL(req.url);
@@ -409,6 +500,14 @@ export default async (req) => {
     await applyTracking(o, b.carrier, tracking, "by one-tap link");
     return json({ ok: true, status: "transit", carrier: o.carrier, tracking: o.tracking });
   }
+  if (a === "track-decline" && req.method === "POST") {
+    const o = await orderByTk(b.t);
+    if (!o) return fail("This link isn't active anymore. Check your latest order email or log in to your portal.", 404);
+    if (o.status === "declined") return json({ ok: true, status: "declined" });
+    if (o.status !== "ordered") return fail("This order already has a tracking number, so it can't be declined here. Email info@mystrymart.com.");
+    await declineOrder(o, b.reason, "by one-tap link");
+    return json({ ok: true, status: "declined" });
+  }
   if (a === "verify" && req.method === "POST") {
     const key = `login/${h(b.token || "")}`;
     const l = await getJ(key);
@@ -428,8 +527,25 @@ export default async (req) => {
   if (a === "me") return s ? json({ email: s.email, role: s.role, artistId: s.artistId || null }) : fail("Not logged in", 401);
   if (!s) return fail("Not logged in", 401);
 
+  if (a === "sub-img") {
+    const id = safeId(url.searchParams.get("id")), n = Math.max(0, Math.min(2, parseInt(url.searchParams.get("n"), 10) || 0));
+    const rec = await getJ(`sub/${id}`);
+    if (!rec || (s.role !== "team" && rec.artist !== s.artistId)) return fail("Not found", 404);
+    const img = await getJ(`subimg/${id}/${n}`);
+    if (!img) return fail("Not found", 404);
+    return new Response(Buffer.from(img.d, "base64"), { headers: { "Content-Type": "image/jpeg", "Cache-Control": "private, max-age=86400" } });
+  }
+
   // ---- artist ----
   if (a === "portal" && s.role === "artist") return json(await portalPayload(s));
+  if (a === "decline" && s.role === "artist" && req.method === "POST") {
+    const o = await getJ(`order/${safeId(b.orderId)}`);
+    if (!o || o.artist !== s.artist.id) return fail("Order not found.", 404);
+    if (o.status !== "ordered") return fail("This order already has a tracking number, so it can't be declined. Email info@mystrymart.com.");
+    await declineOrder(o, b.reason, "in the portal");
+    return json(await portalPayload(s));
+  }
+  if (a === "work-submit" && s.role === "artist" && req.method === "POST") return handleWorkSubmit(s, b);
   if (a === "tracking" && s.role === "artist" && req.method === "POST") {
     const o = await getJ(`order/${safeId(b.orderId)}`);
     if (!o || o.artist !== s.artist.id) return fail("Order not found.", 404);
@@ -454,7 +570,7 @@ export default async (req) => {
     if (!name || !email || !(price >= 0)) return fail("Fill in the name, email and price.");
     const id = safeId(f.id) || safeId(f.slug) || `${safeId(name) || "artist"}-${now().toString(36)}`;
     const old = (await getJ(`artist/${id}`)) || { active: true, added: now() };
-    const works = (Array.isArray(f.works) ? f.works : []).filter((w) => typeof w === "string" && w.startsWith("data:image/")).slice(0, 4);
+    const works = (Array.isArray(f.works) ? f.works : []).filter((w) => typeof w === "string" && w.startsWith("data:image/")).slice(0, 12);
     const photo = typeof f.photo === "string" && (f.photo === "" || f.photo.startsWith("data:image/")) ? f.photo : old.photo || "";
     let handle = String(f.handle || "").trim().slice(0, 60);
     if (handle && !handle.startsWith("@")) handle = "@" + handle;
@@ -478,7 +594,7 @@ export default async (req) => {
   if (a === "order") {
     const art = await getJ(`artist/${safeId(b.artistId)}`);
     if (!art || art.active === false) return fail("Artist not found.", 404);
-    const open = (await orders()).find((o) => o.artist === art.id && o.status !== "received");
+    const open = (await orders()).find((o) => o.artist === art.id && (o.status === "ordered" || o.status === "transit"));
     if (open) return fail(`${art.name} already has an open order.`);
     const picks = (Array.isArray(b.works) ? b.works : []).map(Number).filter((n) => Number.isInteger(n) && n >= 0 && n < (art.works || []).length);
     const n = picks.length, base = n ? Math.floor(QTY / n) : 0, rem = n ? QTY - base * n : 0;
@@ -543,6 +659,19 @@ export default async (req) => {
     if (b.sold != null) p.sold = Math.max(0, Math.min(10000, parseInt(b.sold, 10) || 0));
     if (b.paid != null) { p.paid = !!b.paid; p.paidAt = b.paid ? now() : null; }
     await setJ(key, p);
+    return json(await hqPayload());
+  }
+  if (a === "work-decide") {
+    const rec = await getJ(`sub/${safeId(b.id)}`); if (!rec) return fail("Submission not found.", 404);
+    if (rec.status !== "pending") return fail("This one was already reviewed.");
+    const ok = b.decision === "approve";
+    Object.assign(rec, { status: ok ? "approved" : "denied", note: String(b.note || "").trim().slice(0, 800), decidedAt: now(), by: s.email });
+    const art = await getJ(`artist/${rec.artist}`);
+    if (ok && art && rec.thumb && b.addPhoto !== false) {
+      art.works = [...(art.works || []), rec.thumb].slice(0, 12); art.updated = now(); await setJ(`artist/${art.id}`, art); rec.addedToWorks = true;
+    }
+    await setJ(`sub/${rec.id}`, rec);
+    if (art) await addAlert(art, ok ? "work-ok" : "work-no", null, { title: rec.title, note: rec.note, subId: rec.id });
     return json(await hqPayload());
   }
   if (a === "import") {
