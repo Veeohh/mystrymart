@@ -329,10 +329,10 @@ async function clickCounts() {
 const publicArtist = (a) => ({ id: a.id, name: a.name, studio: a.studio || "", handle: a.handle || "", price: a.price, deal: a.deal, photo: a.photo || "", works: a.works || [] });
 
 async function hqPayload() {
-  const [as, os, als, clicks, pays, subs] = await Promise.all([artists(), orders(), listJ("alert/"), clickCounts(), listJ("payout/"), listJ("sub/")]);
+  const [as, os, als, clicks, pays, subs, agrs] = await Promise.all([artists(), orders(), listJ("alert/"), clickCounts(), listJ("payout/"), listJ("sub/"), listJ("agr/")]);
   for (const a of as) { a.clicks = clicks[a.id] || 0; (a.aliases || []).forEach((s) => (a.clicks += clicks[s] || 0)); delete a._key; }
   os.forEach((o) => delete o._key);
-  return { artists: as, orders: os, alerts: als.sort((x, y) => y.t - x.t).slice(0, 300).map(({ _key, ...r }) => r), payouts: pays.map(({ _key, ...r }) => r), subs: subs.sort((x, y) => y.t - x.t).slice(0, 300).map(({ _key, ...r }) => r), qty: QTY };
+  return { artists: as, orders: os, alerts: als.sort((x, y) => y.t - x.t).slice(0, 300).map(({ _key, ...r }) => r), payouts: pays.map(({ _key, ...r }) => r), subs: subs.sort((x, y) => y.t - x.t).slice(0, 300).map(({ _key, ...r }) => r), agreements: agrs.map(({ _key, ...r }) => r), qty: QTY };
 }
 async function portalPayload(s) {
   const a = s.artist;
@@ -340,7 +340,8 @@ async function portalPayload(s) {
   const als = (await listJ("alert/")).filter((x) => x.artist === a.id && !x.forTeam).sort((x, y) => y.t - x.t).slice(0, 50).map(({ _key, email, ...r }) => r);
   const pays = (await listJ("payout/")).filter((p) => p.artist === a.id).map(({ _key, ...r }) => r);
   const subs = (await listJ("sub/")).filter((x) => x.artist === a.id).sort((x, y) => y.t - x.t).slice(0, 60).map(({ _key, by, ...r }) => r);
-  return { artist: { ...publicArtist(a), email: a.email }, orders: os, alerts: als, payouts: pays, subs, qty: QTY };
+  const ag = await getJ(`agr/${a.id}`);
+  return { artist: { ...publicArtist(a), email: a.email }, orders: os, alerts: als, payouts: pays, subs, agreement: ag ? { name: ag.name, size: ag.size, t: ag.t } : null, qty: QTY };
 }
 
 /* ---------------- artist applications (emailed to the team) ---------------- */
@@ -449,12 +450,32 @@ async function handleWorkSubmit(s, b) {
   return json(await portalPayload(s));
 }
 
+/* ---------------- signed agreements (PDFs kept in Blobs, never in the site files) ---------------- */
+const AGR_MAX = 5.5e6;
+async function handleAgreementUpload(req, url) {
+  if (req.headers.get("x-mm") !== "1") return fail("Bad request", 400);
+  const s = await session(req);
+  if (!s) return fail("Not logged in", 401);
+  if (s.role !== "team") return fail("Not allowed", 403);
+  const art = await getJ(`artist/${safeId(url.searchParams.get("id"))}`);
+  if (!art) return fail("Artist not found.", 404);
+  const ab = await req.arrayBuffer();
+  if (ab.byteLength > AGR_MAX) return fail("That PDF is over 5.5 MB. Compress it and try again.");
+  const head = Buffer.from(ab.slice(0, 5)).toString("latin1");
+  if (ab.byteLength < 200 || head !== "%PDF-") return fail("That file isn't a PDF.");
+  const name = (String(url.searchParams.get("name") || "").replace(/[^\w .,()&'-]+/g, "").trim().slice(0, 120) || `${art.name} agreement`).replace(/(\.pdf)?$/i, ".pdf");
+  await store().set(`agrpdf/${art.id}`, ab);
+  await setJ(`agr/${art.id}`, { artist: art.id, name, size: ab.byteLength, t: now(), by: s.email });
+  return json(await hqPayload());
+}
+
 /* ---------------- handler ---------------- */
 export default async (req) => {
   const url = new URL(req.url);
   const a = url.searchParams.get("a") || "";
   let b = {};
   if (a === "inbound" && req.method === "POST") return handleInbound(req);
+  if (a === "agr-upload" && req.method === "POST") return handleAgreementUpload(req, url);
   if (req.method === "POST") {
     if (req.headers.get("x-mm") !== "1") return fail("Bad request", 400); // blocks cross-site form posts
     try { b = await req.json(); } catch { b = {}; }
@@ -534,6 +555,16 @@ export default async (req) => {
     const img = await getJ(`subimg/${id}/${n}`);
     if (!img) return fail("Not found", 404);
     return new Response(Buffer.from(img.d, "base64"), { headers: { "Content-Type": "image/jpeg", "Cache-Control": "private, max-age=86400" } });
+  }
+
+  // ---- signed agreements (team: any artist, artist: only their own) ----
+  if (a === "agr-file") {
+    const id = s.role === "team" ? safeId(url.searchParams.get("id")) : s.artistId;
+    const meta = id ? await getJ(`agr/${id}`) : null;
+    const buf = meta ? await store().get(`agrpdf/${id}`, { type: "arrayBuffer" }) : null;
+    if (!meta || !buf) return fail("No signed agreement on file yet.", 404);
+    const fname = String(meta.name || "agreement.pdf").replace(/["\\\r\n]/g, "");
+    return new Response(buf, { headers: { "Content-Type": "application/pdf", "Content-Disposition": `${url.searchParams.get("dl") ? "attachment" : "inline"}; filename="${fname}"`, "Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff" } });
   }
 
   // ---- artist ----
@@ -672,6 +703,12 @@ export default async (req) => {
     }
     await setJ(`sub/${rec.id}`, rec);
     if (art) await addAlert(art, ok ? "work-ok" : "work-no", null, { title: rec.title, note: rec.note, subId: rec.id });
+    return json(await hqPayload());
+  }
+  if (a === "agr-del") {
+    const id = safeId(b.id);
+    if (!(await getJ(`agr/${id}`))) return fail("No agreement on file for this artist.", 404);
+    await del(`agrpdf/${id}`); await del(`agr/${id}`);
     return json(await hqPayload());
   }
   if (a === "import") {

@@ -167,6 +167,25 @@ textarea{width:100%;font:inherit;font-size:15px;padding:9px 12px;border-radius:1
 .wk h4{margin:0;font-size:17px}.wk dl{margin:0;display:grid;grid-template-columns:auto 1fr;gap:3px 10px;font-size:13px}.wk dt{color:var(--mute);font-weight:700}.wk dd{margin:0;color:var(--soft);white-space:pre-wrap}
 .wk .acts{display:flex;gap:8px;flex-wrap:wrap}.wk.done{opacity:.8}
 .dlvf{display:flex;flex-wrap:wrap;gap:10px;margin:8px 0}.dlvf label{display:grid;gap:4px;font-size:12px;font-weight:700}.dlvf input[type=number],.dlvf input[type=date]{font:inherit;font-size:14px;padding:6px 8px;border-radius:8px;border:2px solid var(--line);background:var(--panel2);color:inherit;color-scheme:dark;width:auto}.dlvf .chk{display:flex;align-items:center;gap:6px;align-self:end}
+.mel{margin-top:6px;border-color:var(--lime)}
+.mel h3{margin:0 0 6px}
+.melsum{font-size:14px;color:var(--soft);margin:4px 0 12px}
+.melsum b{color:var(--text)}
+.gtab{width:100%;border-collapse:collapse;font-size:14px}
+.gtab th{text-align:left;font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:var(--mute);padding:6px 8px;border-bottom:2px solid var(--line)}
+.gtab td{padding:8px;border-bottom:1px solid var(--line);vertical-align:middle}
+.gtab td.f{word-break:break-word;max-width:260px}
+.gtab select{font-size:14px;padding:6px 8px}
+.gst{font-size:13px;font-weight:700}
+.gst.ok{color:var(--hot)}.gst.bad{color:var(--cold)}.gst.warn{color:var(--warm)}
+.glist{display:grid;gap:8px}
+.gi{background:var(--panel);border:2px solid var(--line);border-radius:12px;padding:10px 12px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.gi .who{display:flex;align-items:center;gap:10px;min-width:200px;flex:1}
+.gi .who span{display:block;font-size:13px;color:var(--soft)}
+.gi .acts{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.gi a.btn{text-decoration:none}
+.chip.noag{color:var(--warm);border-color:var(--warm)}
+@media (max-width:640px){.gtab thead{display:none}.gtab tr{display:grid;gap:4px;padding:8px 0;border-bottom:1px solid var(--line)}.gtab td{border:0;padding:2px 0}}
 </style>
 </head>
 <body>
@@ -177,6 +196,7 @@ textarea{width:100%;font:inherit;font-size:15px;padding:9px 12px;border-radius:1
       <a class="tab" href="#team" data-v="team">Artists &amp; orders</a>
       <a class="tab" href="#payouts" data-v="payouts">Payouts</a>
       <a class="tab" href="#works" data-v="works">New works<b class="nb" id="wN" hidden></b></a>
+      <a class="tab" href="#agreements" data-v="agreements">Agreements<b class="nb" id="gN" hidden></b></a>
     </nav>
     <button class="act" id="actBtn" type="button" aria-expanded="false" hidden>Emails &amp; alerts<b id="actN">0</b></button>
     <button class="act" id="outBtn" type="button" hidden>Log out</button>
@@ -268,6 +288,27 @@ textarea{width:100%;font:inherit;font-size:15px;padding:9px 12px;border-radius:1
     </div>
     <div class="bay"><div class="bay-h"><h2>Wholesale</h2><p>50 pieces × the price when you ordered.</p></div><div id="pWh"></div></div>
     <div class="bay"><div class="bay-h"><h2>Consignment</h2><p>Pieces sold × their price. Type the number sold; it saves when you leave the box.</p></div><div id="pCo"></div></div>
+    <div class="card mel">
+      <h3>Export for Melio</h3>
+      <p>One row per artist with what they’re still owed this month (wholesale + consignment, not yet marked paid). Due date is today, the email is the artist’s portal email. Import the file in Melio, then mark them paid here.</p>
+      <div id="pMel" class="melsum"></div>
+      <button class="btn" type="button" id="pCsv">Download CSV for Melio</button>
+    </div>
+  </section>
+
+  <!-- AGREEMENTS -->
+  <section data-view="agreements" hidden>
+    <h1>Agreements</h1>
+    <p class="lede">Signed artist agreements, kept privately with HQ. Each artist can open their own from their portal. Upload PDFs below: file names are matched to artists automatically, and you can fix any match before uploading.</p>
+    <div class="stats" style="grid-template-columns:repeat(3,minmax(0,1fr))">
+      <div class="stat"><small>Signed, on file</small><b id="gOn">0</b></div>
+      <div class="stat"><small>Still waiting on</small><b id="gWait">0</b></div>
+      <div class="stat"><small>Active artists</small><b id="gAll">0</b></div>
+    </div>
+    <div class="bay"><div class="bay-h"><span class="dot" style="background:var(--lime)"></span><h2>Upload signed agreements</h2><p>PDFs up to 5.5 MB. Pick as many as you like at once.</p></div>
+      <div class="card"><label for="gFiles">Choose PDFs</label><input id="gFiles" type="file" accept="application/pdf,.pdf" multiple><div id="gQueue"></div></div></div>
+    <div class="bay"><div class="bay-h"><span class="dot" style="background:var(--warm)"></span><h2>Still waiting on</h2><p>Active artists with no signed agreement on file.</p><div class="sp"><button class="btn ghost sm" type="button" id="gCopy">Copy their emails</button></div></div><div id="gWaitL"></div></div>
+    <div class="bay"><div class="bay-h"><span class="dot" style="background:var(--hot)"></span><h2>On file</h2></div><div id="gOnL"></div><input id="gRep" type="file" accept="application/pdf,.pdf" hidden></div>
   </section>
 </div>
 
@@ -298,13 +339,13 @@ async function api(a,body){
   return j;
 }
 
-let ARTISTS=[],ORDERS=[],ALERTS=[],PAYOUTS=[],SUBS=[],loaded=false;
+let ARTISTS=[],ORDERS=[],ALERTS=[],PAYOUTS=[],SUBS=[],AGR=[],loaded=false;
 const sel={},ui={deny:null,dlv:null,cancel:null,editPrice:null,confirm:null,editing:null,q:'',deal:'',show:'active',busy:false};
 const byId=id=>ARTISTS.find(a=>a.id===id);
 const stock=aid=>ORDERS.filter(o=>o.artist===aid&&o.status==='received').reduce((s,o)=>s+(o.qty||QTY),0)-PAYOUTS.filter(p=>p.artist===aid).reduce((s,p)=>s+(p.sold||0),0);
 const latest=aid=>ORDERS.filter(o=>o.artist===aid).sort((a,b)=>b.placed-a.placed)[0];
 const isOpen=o=>o&&(o.status==='ordered'||o.status==='transit');
-function take(p){ARTISTS=p.artists||[];ORDERS=p.orders||[];ALERTS=p.alerts||[];PAYOUTS=p.payouts||[];SUBS=p.subs||[];QTY=p.qty||50;loaded=true;
+function take(p){ARTISTS=p.artists||[];ORDERS=p.orders||[];ALERTS=p.alerts||[];PAYOUTS=p.payouts||[];SUBS=p.subs||[];AGR=p.agreements||[];QTY=p.qty||50;loaded=true;
   setStatus('ok','Updates every 20 seconds. Changes save as soon as you make them.');renderAll();}
 async function act(a,body,okMsg){if(ui.busy)return false;ui.busy=true;
   try{take(await api(a,body));if(okMsg)toast(okMsg);return true;}
@@ -371,7 +412,7 @@ function row(a,max){
     <button class="btn" type="button" data-order="${esc(a.id)}" ${open?'disabled':''}>Order ${QTY} pieces</button>
     <span class="links"><button class="linkbtn" type="button" data-edit="${esc(a.id)}">Edit</button><button class="linkbtn" type="button" data-dlv="${esc(a.id)}">Log delivery</button><button class="linkbtn" type="button" data-rm="${esc(a.id)}">Remove</button></span>${open&&o.status==='ordered'?cancelUi(o):''}${ui.dlv===a.id?dlvUi(a):''}`;
   return `<div class="row ${a.active===false?'off':''}">
-    <div><div class="who">${avatar(a)}<div><b>${esc(a.name)}</b><span>${a.studio?esc(a.studio)+' · ':''}${esc(a.handle)}</span></div></div>
+    <div><div class="who">${avatar(a)}<div><b>${esc(a.name)}</b><span>${a.studio?esc(a.studio)+' · ':''}${esc(a.handle)}</span>${a.active!==false&&!agrOf(a.id)?'<a class="chip noag" href="#agreements">No agreement yet</a>':''}</div></div>
       ${(a.clicks||0)>0?`<div class="clk"><div class="bar"><i style="width:${Math.round(a.clicks/max*100)}%"></i></div><span>${a.clicks}</span><span style="font-family:var(--f-body);font-size:12px;color:var(--mute)">visits</span></div>`:''}
       <div class="chips">${priceUi}${dealUi}${statusChip(o)}${(()=>{const n=stock(a.id);return n>0?`<span class="chip">${n} in stock</span>`:''})()}</div></div>
     ${pieces}<div class="ord">${action}</div></div>`;
@@ -469,13 +510,99 @@ function renderPayouts(){
   $('pCo').innerHTML=co.length?`<div class="tw"><table class="paytable"><thead><tr><th>Artist</th><th class="n">Sold</th><th class="n">Price</th><th class="n">Owed</th><th>Paid</th></tr></thead><tbody>${co.map(a=>{const p=PAYOUTS.find(x=>x.month===m&&x.artist===a.id)||{};const v=(p.sold||0)*a.price;owed+=v;if(p.paid)paid+=v;
     return `<tr><td>${esc(a.name)}</td><td class="n"><input type="number" min="0" step="1" inputmode="numeric" value="${p.sold||0}" data-sold="${esc(a.id)}" aria-label="Pieces sold by ${esc(a.name)}"></td><td class="n">${money(a.price)}</td><td class="n"><b>${money(v)}</b></td><td><label class="chk"><input type="checkbox" data-cpaid="${esc(a.id)}" ${p.paid?'checked':''} ${v?'':'disabled'}>${p.paid?'<span class="paid">Paid</span>':'Mark paid'}</label></td></tr>`;}).join('')}</tbody></table></div>`:'<p class="empty">No consignment artists.</p>';
   $('pOwed').textContent=money(owed);$('pPaid').textContent=money(paid);$('pLeft').textContent=money(owed-paid);
+  const rows=melioRows(m),tot=rows.reduce((s,r)=>s+r.amt,0),noEm=rows.filter(r=>!r.email).length;
+  $('pMel').innerHTML=rows.length?`<b>${rows.length}</b> artist${rows.length>1?'s':''} · <b>${money(tot)}</b> still to pay${noEm?` · <span style="color:var(--cold)">${noEm} missing an email</span>`:''}`:'Nothing left to pay this month.';
+  $('pCsv').disabled=!rows.length;
 }
+// What each artist is still owed for month m: unpaid wholesale boxes received that month + unpaid consignment sales.
+function melioRows(m){const by={};
+  const add=(id,name,v)=>{if(!(v>0))return;const a=byId(id)||{};(by[id]=by[id]||{id,name:a.name||name||id,email:a.email||'',amt:0}).amt+=v;};
+  ORDERS.filter(o=>o.status==='received'&&o.deal==='Wholesale'&&monthOf(o.received)===m&&!o.paid).forEach(o=>add(o.artist,o.artistName,(o.qty||QTY)*(o.price||0)));
+  ARTISTS.filter(a=>a.deal==='Consignment').forEach(a=>{const p=PAYOUTS.find(x=>x.month===m&&x.artist===a.id);if(p&&!p.paid)add(a.id,a.name,(p.sold||0)*a.price);});
+  return Object.values(by).map(r=>({...r,amt:Math.round(r.amt*100)/100})).sort((x,y)=>x.name.localeCompare(y.name));}
+const csvCell=v=>{v=String(v==null?'':v);return /[",\n\r]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v;};
+$('pCsv').onclick=()=>{const m=$('pMonth').value||monthOf(Date.now()),rows=melioRows(m);if(!rows.length){toast('Nothing left to pay this month.',true);return;}
+  const d=new Date(),due=String(d.getMonth()+1).padStart(2,'0')+'/'+String(d.getDate()).padStart(2,'0')+'/'+d.getFullYear();
+  const lines=[['Business name','Invoice #','Invoice date','Due date','Email','Bill amount'],...rows.map(r=>['','','',due,r.email,r.amt.toFixed(2)])].map(l=>l.map(csvCell).join(','));
+  const blob=new Blob([lines.join('\r\n')+'\r\n'],{type:'text/csv;charset=utf-8'}),u=URL.createObjectURL(blob),a=document.createElement('a');
+  a.href=u;a.download=`melio-payouts-${m}.csv`;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),2000);
+  const miss=rows.filter(r=>!r.email).length;toast(miss?`CSV downloaded. ${miss} artist${miss>1?'s have':' has'} no email: add it in Melio.`:`CSV downloaded: ${rows.length} artists, ${money(rows.reduce((s,r)=>s+r.amt,0))}.`,!!miss);};
 $('pMonth').addEventListener('change',renderPayouts);
 const pv=document.querySelector('[data-view="payouts"]');
 pv.addEventListener('change',e=>{const t=e.target;
   if(t.dataset.opaid)act('order-paid',{orderId:t.dataset.opaid,paid:t.checked},t.checked?'Marked paid.':'Marked unpaid.');
   if(t.dataset.cpaid)act('payout',{month:$('pMonth').value,artistId:t.dataset.cpaid,paid:t.checked},t.checked?'Marked paid.':'Marked unpaid.');
   if(t.dataset.sold)act('payout',{month:$('pMonth').value,artistId:t.dataset.sold,sold:parseInt(t.value,10)||0},'Saved.');});
+
+/* ---------- agreements ---------- */
+const agrOf=id=>AGR.find(g=>g.artist===id);
+const AGR_URL=(id,dl)=>API+'?a=agr-file&id='+encodeURIComponent(id)+(dl?'&dl=1':'');
+const normN=s=>String(s||'').toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g,'').replace(/\.pdf$/i,'').replace(/\b(signed|agreement|contract|mystry|mart|final|copy|v\d+)\b/g,' ').replace(/[^a-z0-9]+/g,' ').trim();
+function guessArtist(fname){const f=normN(fname);if(!f)return'';const ft=f.split(' ').filter(Boolean),fc=f.replace(/ /g,'');let best='',bs=0,tie=false;
+  // Only confident matches: the whole file name matches a name/studio/handle, or every word of one is in the other. A shared last name alone never counts.
+  for(const a of ARTISTS){let sc=0;
+    for(const k of [a.name,a.studio,(a.handle||'').replace(/^@/,''),String(a.id||'').replace(/[-_]/g,' ')].map(normN).filter(Boolean)){
+      const kt=k.split(' ').filter(Boolean),kc=k.replace(/ /g,'');
+      if(k===f||kc===fc){sc=Math.max(sc,100);continue;}
+      const fin=ft.filter(t=>kt.includes(t)).length,kin=kt.filter(t=>ft.includes(t)).length;
+      if(fin===ft.length&&fc.length>=3)sc=Math.max(sc,80+fin);        // e.g. "Jackie" -> "Jackie Mar", "Space Rabbit" -> "Space Rabbit Studio"
+      else if(kin===kt.length&&kc.length>=4)sc=Math.max(sc,75+kin);   // e.g. "Katrin Face agreement" -> "Katrin Face"
+      else if(ft.length>=2&&kt.length>=2&&ft[ft.length-1]===kt[kt.length-1]&&Math.min(ft[0].length,kt[0].length)>=3&&(ft[0].startsWith(kt[0])||kt[0].startsWith(ft[0])))sc=Math.max(sc,85); // "Benjamin Polczynski" -> "Ben Polczynski"
+      else if(fc.length>=6&&kc.length>=6&&(kc.includes(fc)||fc.includes(kc)))sc=Math.max(sc,70);}
+    if(a.active===false)sc-=5;
+    if(sc>bs){bs=sc;best=a.id;tie=false;}else if(sc&&sc===bs)tie=true;}
+  return bs>=70&&!tie?best:'';}
+ui.gq=[];ui.gBusy=false;ui.gRm=null;ui.gRep=null;
+const sizeT=n=>n>1e6?(n/1e6).toFixed(1)+' MB':Math.max(1,Math.round(n/1e3))+' KB';
+function artistOptions(sel){const act=ARTISTS.filter(a=>a.active!==false).sort((x,y)=>x.name.localeCompare(y.name)),off=ARTISTS.filter(a=>a.active===false).sort((x,y)=>x.name.localeCompare(y.name));
+  const o=a=>`<option value="${esc(a.id)}" ${a.id===sel?'selected':''}>${esc(a.name)}${a.studio?' ('+esc(a.studio)+')':''}${agrOf(a.id)?' · has one':''}</option>`;
+  return `<option value="">Choose the artist…</option>${act.map(o).join('')}${off.length?`<optgroup label="Removed artists">${off.map(o).join('')}</optgroup>`:''}`;}
+function renderAgreements(){
+  const act=ARTISTS.filter(a=>a.active!==false),wait=act.filter(a=>!agrOf(a.id)).sort((x,y)=>x.name.localeCompare(y.name));
+  const on=AGR.map(g=>({g,a:byId(g.artist)||{id:g.artist,name:g.artist,handle:''}})).sort((x,y)=>x.a.name.localeCompare(y.a.name));
+  $('gOn').textContent=act.filter(a=>agrOf(a.id)).length;$('gWait').textContent=wait.length;$('gAll').textContent=act.length;
+  const nb=$('gN');nb.hidden=!wait.length;nb.textContent=wait.length;
+  $('gWaitL').innerHTML=wait.length?`<div class="glist">${wait.map(a=>`<div class="gi"><div class="who">${avatar(a)}<div><b>${esc(a.name)}</b><span>${esc(a.email||'No email')}${a.deal?' · '+esc(a.deal):''}</span></div></div></div>`).join('')}</div>`:'<p class="empty">Everyone on the active roster has a signed agreement on file.</p>';
+  $('gCopy').hidden=!wait.length;
+  $('gOnL').innerHTML=on.length?`<div class="glist">${on.map(({g,a})=>`<div class="gi"><div class="who">${avatar(a)}<div><b>${esc(a.name)}</b><span>${esc(g.name)} · ${sizeT(g.size||0)} · added ${fmtD(g.t)}${a.active===false?' · removed artist':''}</span></div></div>
+    <div class="acts">${ui.gRm===a.id?`<span class="meta">Delete this agreement from HQ and their portal?</span><button class="btn danger sm" type="button" data-grmyes="${esc(a.id)}">Delete</button><button class="btn ghost sm" type="button" data-grmno>Keep</button>`
+      :`<a class="btn sm" href="${esc(AGR_URL(a.id))}" target="_blank" rel="noopener">View</a><a class="btn ghost sm" href="${esc(AGR_URL(a.id,1))}">Download</a><button class="btn ghost sm" type="button" data-grep="${esc(a.id)}">Replace</button><button class="linkbtn" type="button" data-grm="${esc(a.id)}">Delete</button>`}</div></div>`).join('')}</div>`:'<p class="empty">No agreements uploaded yet.</p>';
+  renderQueue();}
+function renderQueue(){const q=ui.gq;if(!q.length){$('gQueue').innerHTML='';return;}
+  const ready=q.filter(x=>x.st!=='done'&&x.id).length;
+  $('gQueue').innerHTML=`<div class="tw" style="margin-top:12px"><table class="gtab"><thead><tr><th>File</th><th>Artist</th><th>Status</th></tr></thead><tbody>${q.map((x,i)=>`<tr><td class="f">${esc(x.file.name)} <span class="meta">(${sizeT(x.file.size)})</span></td>
+    <td>${x.st==='done'?esc((byId(x.id)||{}).name||''):`<select data-gq="${i}" aria-label="Artist for ${esc(x.file.name)}" ${ui.gBusy?'disabled':''}>${artistOptions(x.id)}</select>`}</td>
+    <td><span class="gst ${x.st==='done'?'ok':x.st==='err'?'bad':x.id?'':'warn'}">${x.st==='done'?'Uploaded ✓':x.st==='up'?'Uploading…':x.st==='err'?esc(x.msg):!x.id?'Pick the artist':x.file.size>5.5e6?'Over 5.5 MB':agrOf(x.id)?'Will replace their current one':x.auto?'Matched':'Ready'}</span></td></tr>`).join('')}</tbody></table></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px"><button class="btn" type="button" id="gGo" ${ready&&!ui.gBusy?'':'disabled'}>${ui.gBusy?'Uploading…':`Upload ${ready} agreement${ready===1?'':'s'}`}</button><button class="btn ghost" type="button" id="gClr" ${ui.gBusy?'disabled':''}>Clear list</button></div>`;}
+async function uploadAgr(id,file){
+  if(file.size>5.5e6)throw new Error('Over 5.5 MB. Compress the PDF and try again.');
+  const r=await fetch(API+'?a=agr-upload&id='+encodeURIComponent(id)+'&name='+encodeURIComponent(file.name),{method:'POST',credentials:'same-origin',headers:{'x-mm':'1','Content-Type':'application/pdf'},body:file});
+  let j={};try{j=await r.json();}catch(_){}
+  if(!r.ok){const e=new Error(j.error||'Upload failed. Try again.');e.status=r.status;throw e;}
+  return j;}
+$('gFiles').addEventListener('change',e=>{const fs=[...e.target.files].filter(f=>/\.pdf$/i.test(f.name)||f.type==='application/pdf');
+  const used=new Set(ui.gq.map(x=>x.id).filter(Boolean));
+  for(const f of fs){let id=guessArtist(f.name);if(id&&used.has(id))id='';if(id)used.add(id);ui.gq.push({file:f,id,auto:!!id,st:''});}
+  if(fs.length<e.target.files.length)toast('Only PDF files can be uploaded.',true);
+  e.target.value='';renderQueue();});
+const av=document.querySelector('[data-view="agreements"]');
+av.addEventListener('change',e=>{const t=e.target;if(t.dataset.gq!=null){const x=ui.gq[+t.dataset.gq];if(x){x.id=t.value;x.auto=false;x.st='';}renderQueue();}});
+av.addEventListener('click',async e=>{const t=e.target.closest('button');if(!t)return;
+  if(t.id==='gClr'){ui.gq=[];renderQueue();return;}
+  if(t.id==='gCopy'){const em=ARTISTS.filter(a=>a.active!==false&&!agrOf(a.id)&&a.email).map(a=>a.email).join(', ');
+    try{await navigator.clipboard.writeText(em);toast('Emails copied.');}catch(_){toast('Couldn’t copy. Select them from the list instead.',true);}return;}
+  if(t.id==='gGo'){if(ui.gBusy)return;ui.gBusy=true;let ok=0,bad=0;
+    for(const x of ui.gq){if(x.st==='done'||!x.id)continue;x.st='up';renderQueue();
+      try{take(await uploadAgr(x.id,x.file));x.st='done';ok++;}catch(err){x.st='err';x.msg=err.message;bad++;if(err.status===401){showLogin();break;}}
+      renderQueue();}
+    ui.gBusy=false;renderAgreements();toast(bad?`${ok} uploaded, ${bad} didn’t. See the list.`:`${ok} agreement${ok===1?'':'s'} uploaded.`,!!bad);return;}
+  if(t.dataset.grep){ui.gRep=t.dataset.grep;$('gRep').click();return;}
+  if(t.dataset.grm){ui.gRm=t.dataset.grm;renderAgreements();return;}
+  if(t.hasAttribute('data-grmno')){ui.gRm=null;renderAgreements();return;}
+  if(t.dataset.grmyes){const id=t.dataset.grmyes;ui.gRm=null;await act('agr-del',{id},'Agreement deleted.');return;}
+});
+$('gRep').addEventListener('change',async e=>{const f=e.target.files[0],id=ui.gRep;e.target.value='';ui.gRep=null;if(!f||!id)return;
+  try{take(await uploadAgr(id,f));toast('Agreement replaced.');}catch(err){toast(err.message,true);}});
 
 /* ---------- drawer ---------- */
 function renderMails(){$('actN').textContent=ALERTS.length;
@@ -485,11 +612,11 @@ ab.onclick=()=>{dr.hidden=!dr.hidden;ab.setAttribute('aria-expanded',String(!dr.
 $('drawerX').onclick=()=>{dr.hidden=true;ab.setAttribute('aria-expanded','false');ab.focus();};
 
 /* ---------- routing / login ---------- */
-const VIEWS=['team','payouts','works'];let authed=false;
+const VIEWS=['team','payouts','works','agreements'];let authed=false;
 function route(){if(!authed)return;const v=VIEWS.includes(location.hash.slice(1))?location.hash.slice(1):'team';
   document.querySelectorAll('[data-view]').forEach(s=>s.hidden=s.dataset.view!==v);
   document.querySelectorAll('.tab').forEach(t=>{if(t.dataset.v===v)t.setAttribute('aria-current','page');else t.removeAttribute('aria-current');});}
-function renderAll(){if(!authed)return;renderTeam();renderPayouts();renderWorks();renderMails();}
+function renderAll(){if(!authed)return;renderTeam();renderPayouts();renderWorks();renderAgreements();renderMails();}
 window.addEventListener('hashchange',()=>{route();if(authed)load();});
 function showLogin(msg){authed=false;$('login').hidden=false;['tabs','actBtn','outBtn'].forEach(i=>$(i).hidden=true);document.querySelectorAll('[data-view]').forEach(s=>s.hidden=true);
   setStatus('wait',msg||'Log in to continue.');}
@@ -504,7 +631,7 @@ async function load(){try{take(await api('hq'));}catch(e){if(e.status===401)show
   try{const me=await api('me');if(me.role!=='team')throw{status:401};}catch(e){showLogin();return;}
   authed=true;$('login').hidden=true;['tabs','actBtn','outBtn'].forEach(i=>$(i).hidden=false);route();
   await load();
-  setInterval(()=>{const ae=document.activeElement;if(ui.busy||ui.editPrice||ui.deny||!$('artForm').hidden||(ae&&/INPUT|SELECT/.test(ae.tagName)&&ae.closest('[data-view="payouts"]')))return;if(document.visibilityState==='visible')load();},20000);
+  setInterval(()=>{const ae=document.activeElement;if(ui.busy||ui.gBusy||ui.gq.length||ui.gRm||ui.editPrice||ui.deny||!$('artForm').hidden||(ae&&/INPUT|SELECT/.test(ae.tagName)&&ae.closest('[data-view="payouts"]')))return;if(document.visibilityState==='visible')load();},20000);
 })();
 })();
 </script>

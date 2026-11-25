@@ -172,6 +172,11 @@ textarea{width:100%;font:inherit;font-size:16px;padding:9px 12px;border-radius:1
 .subs li{align-items:center;justify-content:flex-start;flex-wrap:nowrap}.subs li img{width:48px;height:60px;object-fit:cover;border-radius:6px;flex:none}.subs li .sx{flex:1;min-width:0}.subs li .sx b{display:block}.subs li .sx span{color:var(--mute);font-size:13px}.subs .chip{flex:none}
 .sst{display:inline-block;font-size:12px;font-weight:800;border-radius:999px;padding:2px 9px;margin-bottom:4px;color:var(--ink)!important;white-space:nowrap}.subs li{align-items:flex-start}
 .hist li{display:flex;flex-wrap:wrap;justify-content:space-between;gap:6px 12px;background:var(--panel2);border-radius:10px;padding:10px 12px;font-size:14px}
+.agrow{display:flex;align-items:center;gap:12px}
+.agrow b{display:block}.agrow span{font-size:13px;color:var(--soft);word-break:break-word}
+.agic{flex:none;width:44px;height:52px;border-radius:8px;background:var(--panel2);border:2px solid var(--line);display:grid;place-items:center;font-size:11px;font-weight:800;color:var(--pink)}
+.agbtns{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.agbtns a{text-decoration:none}
 </style>
 </head>
 <body>
@@ -243,6 +248,7 @@ textarea{width:100%;font:inherit;font-size:16px;padding:9px 12px;border-radius:1
     </div>
     <div class="card" style="margin-top:18px"><h3>Your earnings</h3><div class="mtabs" id="mtabs" role="tablist" aria-label="Month"></div><div id="earn"></div></div>
     <div class="card" style="margin-top:18px"><h3>Past orders</h3><ul class="hist" id="hist"></ul></div>
+    <div class="card agc" style="margin-top:18px"><h3>Your agreement</h3><div id="agBody"></div></div>
   </section>
 </div>
 <div class="toast" id="toast" role="status" hidden></div>
@@ -278,7 +284,7 @@ function render(){
   const past=os.filter(x=>x.status==='received'||x.status==='declined');
   $('hist').innerHTML=past.length?past.map(x=>x.status==='declined'?`<li><span>Requested ${fmtD(x.placed)} · ${x.qty||qty} pieces</span><span style="color:var(--mute);font-weight:700">You couldn’t send this · ${fmtD(x.declined)}</span></li>`:`<li><span>${x.logged?'Delivered':'Ordered '+fmtD(x.placed)+' ·'} ${x.qty||qty} pieces</span><span style="color:var(--hot);font-weight:700">Received ${fmtD(x.received)}</span></li>`).join(''):'<li>None yet.</li>';
   const cp=$('cpy');if(cp)cp.onclick=async()=>{try{await navigator.clipboard.writeText($('ibx').textContent);toast('Copied!');}catch(_){const r=document.createRange();r.selectNodeContents($('ibx'));const s=getSelection();s.removeAllRanges();s.addRange(r);toast('Selected. Press copy.');}};
-  renderEarn();renderInv();renderSubs();
+  renderEarn();renderInv();renderSubs();renderAgr();
   const dO=$('dclOpen');if(dO){dO.onclick=()=>{dclOpen=true;$('dclBox').hidden=false;$('dclR').focus();};$('dclNo').onclick=()=>{dclOpen=false;$('dclBox').hidden=true;};
     $('dclYes').onclick=async()=>{$('dclYes').disabled=true;try{D=await api('decline',{orderId:o.id,reason:$('dclR').value});dclOpen=false;render();toast('Thanks for letting us know. No need to ship this one.');}catch(err){toast(err.message,true);$('dclYes').disabled=false;}};}
   const tf=$('tf');if(tf)tf.onsubmit=async e=>{e.preventDefault();$('tbtn').disabled=true;
@@ -288,6 +294,10 @@ function render(){
 let selM=null,dclOpen=false;
 const KINDS=['Standard print (wholesale)','Specialty print: Giclée, Riso, block, AR or special edition (wholesale)','Original on paper (consignment)','Original on canvas (consignment)','Ceramics or glass (consignment)','Something else (consignment)'],CAPS=[5,8,50,50,50,50];
 const SST={pending:['Waiting for review','var(--warm)'],approved:['Approved','var(--hot)'],denied:['Not approved','var(--cold)']};
+function renderAgr(){const g=D.agreement,u=API+'?a=agr-file';
+  $('agBody').innerHTML=g?`<div class="agrow"><span class="agic" aria-hidden="true">PDF</span><div><b>Signed Mystry Mart artist agreement</b><span>${esc(g.name)} · added ${fmtD(g.t)}</span></div></div>
+    <div class="agbtns"><a class="btn sm" href="${u}" target="_blank" rel="noopener">View</a><a class="btn ghost sm" href="${u}&dl=1">Download</a></div>`
+    :`<p class="empty">We don’t have your signed agreement on file yet. If you’ve already sent it, it’ll show up here once we add it. Questions? Email <a href="mailto:info@mystrymart.com">info@mystrymart.com</a>.</p>`;}
 function renderSubs(){const l=D.subs||[];
   $('subs').innerHTML=l.map(x=>{const st=SST[x.status]||SST.pending;return`<li>${x.thumb?`<img src="${esc(x.thumb)}" alt="">`:''}<div class="sx"><span class="sst" style="background:${st[1]}">${st[0]}</span><b>${esc(x.title)}</b><span>${esc(x.kind)} · ${esc(x.size)} · ${money(x.price)} · sent ${fmtD(x.t)}</span>${x.note?`<span style="display:block;color:var(--soft)">Note from Mystry Mart: ${esc(x.note)}</span>`:''}</div></li>`;}).join('');
   $('subs').hidden=!l.length;}
